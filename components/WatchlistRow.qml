@@ -49,7 +49,7 @@ Rectangle {
     id: identity
     anchors.left: parent.left
     anchors.leftMargin: Style.space(9)
-    anchors.right: figures.left
+    anchors.right: chart.left
     anchors.rightMargin: Style.space(8)
     anchors.verticalCenter: parent.verticalCenter
     spacing: Style.space(3)
@@ -99,11 +99,25 @@ Rectangle {
     }
   }
 
+  Sparkline {
+    id: chart
+    anchors.right: figures.left
+    anchors.rightMargin: Style.space(10)
+    anchors.verticalCenter: parent.verticalCenter
+    width: Style.space(58)
+    height: Style.space(22)
+    series: root.hasQuote ? root.quote.series : null
+    previousClose: root.hasQuote ? Number(root.quote.previousClose || 0) : 0
+    lineColor: root.movementColor
+    guideColor: root.textColor
+  }
+
   Column {
     id: figures
     anchors.right: parent.right
     anchors.rightMargin: Style.space(9)
     anchors.verticalCenter: parent.verticalCenter
+    width: Style.space(104)
     spacing: Style.space(3)
 
     Text {

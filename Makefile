@@ -3,6 +3,7 @@ QML_FILES := Panel.qml QuoteFeed.qml Watchlist.qml ThemePalette.qml \
 	components/PulseLogo.qml \
 	components/StatusDot.qml \
 	components/MarketBadge.qml \
+	components/Sparkline.qml \
 	components/WatchlistRow.qml \
 	components/WatchlistView.qml \
 	components/SymbolDetail.qml

@@ -82,6 +82,8 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 - Rows are grouped by market and hold watchlist order inside a market. Nothing
   re-sorts on a value that moves — ordering that shuffles as prices tick is
   worse than ordering that holds still.
+- Each priced row carries the current session's intraday line. It comes from
+  the same Yahoo chart response as the quote, so it adds no request or delay.
 - Both Chinese boards share one `CN` badge and both Korean boards share `KR`;
   which board a symbol sits on is already in its suffix.
 - `LIVE` / `LOADING` / `OFFLINE` sits where a refresh button would be. The
@@ -114,7 +116,7 @@ The macOS app routes across several sources; this port currently ships one.
 Still to come: crypto through Binance (including the 1-second websocket
 ticker), spot precious metals and the Shanghai Gold Exchange, Korean real-time
 and Korean-language search through Naver, the Sina and Tencent providers,
-Longbridge real-time for HK/US/A-shares, charts, and position tracking. The
+Longbridge real-time for HK/US/A-shares, larger charts, and position tracking. The
 symbol layer already models all of them, which is why `BTC/USDT` and `XAU`
 parse but are refused by the Yahoo adapter rather than quietly priced off the
 wrong instrument.

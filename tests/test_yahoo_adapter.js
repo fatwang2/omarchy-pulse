@@ -46,6 +46,7 @@ test("only US symbols are read over an extended-session window", () => {
 
   const hk = Yahoo.requestFor(SymbolID.parse("700.HK"))
   assert.equal(hk.extended, false)
+  assert.match(hk.url, /interval=5m/)
   assert.match(hk.url, /range=1d/)
   assert.match(hk.url, /includePrePost=false/)
 })
@@ -103,4 +104,57 @@ test("the last bar is found by scanning back past Yahoo's null padding", () => {
   const result = fixture("yahoo_extended_post.json").chart.result[0]
   const latest = Yahoo.latestClose(result)
   assert.equal(latest.price, 104.5)
+})
+
+test("the quote carries an intraday series from the same chart response", () => {
+  const quote = Yahoo.parseQuote(SymbolID.parse("TEST"), fixture("yahoo_extended_post.json"), true)
+  assert.deepEqual(quote.series.points, [98.2, 100.1, 101.5, 104.5])
+  assert.equal(quote.series.min, 98.2)
+  assert.equal(quote.series.max, 104.5)
+})
+
+test("the US intraday line starts at today's session, not the window's edge", () => {
+  // The two-day window opens on yesterday's pre-market. Joining that to today
+  // draws a straight edge across the overnight gap that never traded.
+  const base = 1787000000
+  const payload = {
+    chart: {
+      result: [{
+        meta: {
+          currency: "USD", regularMarketPrice: 101,
+          previousClose: 100, chartPreviousClose: 99,
+          regularMarketTime: base + 90000,
+          currentTradingPeriod: {
+            pre: { start: base + 86400, end: base + 106200 },
+            regular: { start: base + 106200, end: base + 129600 },
+            post: { start: base + 129600, end: base + 144000 }
+          }
+        },
+        // Two yesterday bars, then three from today.
+        timestamp: [base, base + 20000, base + 86400, base + 106200, base + 110000],
+        indicators: { quote: [{ open: [null, null, 90, 95, 96], close: [80, 85, 90, 95, 101] }] }
+      }],
+      error: null
+    }
+  }
+  const series = Yahoo.intradaySeries(payload.chart.result[0], true)
+  assert.deepEqual(series.points, [90, 95, 101])
+  // Yesterday's 80 would otherwise drag the floor down and flatten today.
+  assert.equal(series.min, 90)
+  assert.equal(series.max, 101)
+})
+
+test("a non-US series keeps the whole day, which is the whole window", () => {
+  const result = fixture("yahoo_regular.json").chart.result[0]
+  const series = Yahoo.intradaySeries(result, false)
+  // The fixture is a daily-interval capture, so it has too few bars to draw.
+  // The adapter says so rather than handing the row a one-point line.
+  if (series) assert.ok(series.points.length >= 2)
+})
+
+test("a response with nothing to draw yields no series rather than a flat line", () => {
+  assert.equal(Yahoo.intradaySeries({ meta: {}, indicators: {} }, false), null)
+  assert.equal(Yahoo.intradaySeries({
+    meta: {}, timestamp: [1], indicators: { quote: [{ close: [100] }] }
+  }, false), null)
 })

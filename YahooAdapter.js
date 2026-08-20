@@ -85,7 +85,10 @@ function requestFor(symbol) {
   var extended = symbol.market === "us"
   var query = extended
     ? "interval=1m&range=2d&includePrePost=true"
-    : "interval=1d&range=1d&includePrePost=false"
+    // Five-minute bars give the row its intraday line and, unlike the daily
+    // shape, consistently carry chartPreviousClose for the change figure.
+    // It is still the same response and therefore costs no extra request.
+    : "interval=5m&range=1d&includePrePost=false"
   return {
     url: BASE + encodeURIComponent(wire) + "?" + query,
     wireSymbol: wire,
@@ -130,6 +133,38 @@ function latestClose(result) {
     }
   }
   return null
+}
+
+// The little line in a watchlist row needs prices, not full OHLC candles. For
+// the two-day US request, keep only the current trading period; otherwise
+// yesterday's line would be joined to today's pre-market with a false edge.
+function intradaySeries(result, extended) {
+  var timestamps = result && result.timestamp
+  var series = ohlcSeries(result)
+  var closes = series && series.close
+  if (!timestamps || !closes) return null
+
+  var periods = result.meta && result.meta.currentTradingPeriod
+  var start = 0
+  if (extended) {
+    start = (periods && periods.pre && periods.pre.start)
+      || (periods && periods.regular && periods.regular.start)
+      || 0
+  }
+
+  var points = []
+  var minimum = Infinity
+  var maximum = -Infinity
+  var count = Math.min(timestamps.length, closes.length)
+  for (var i = 0; i < count; i++) {
+    var close = closes[i]
+    if (timestamps[i] < start || typeof close !== "number" || !isFinite(close)) continue
+    points.push(close)
+    minimum = Math.min(minimum, close)
+    maximum = Math.max(maximum, close)
+  }
+  if (points.length < 2) return null
+  return { points: points, min: minimum, max: maximum }
 }
 
 function withinPeriod(period, seconds) {
@@ -204,7 +239,8 @@ function parseQuote(symbol, payload, extended) {
     sourceID: ID,
     sourceName: NAME,
     sourceDelaySeconds: DELAY[symbol.market] === undefined ? null : DELAY[symbol.market],
-    regularSession: null
+    regularSession: null,
+    series: intradaySeries(result, extended)
   }
 
   if (!extended) {
@@ -245,5 +281,6 @@ if (typeof module !== "undefined") module.exports = {
   marketStateFor: marketStateFor,
   referenceClose: referenceClose,
   regularSessionClose: regularSessionClose,
-  regularSessionOpen: regularSessionOpen
+  regularSessionOpen: regularSessionOpen,
+  intradaySeries: intradaySeries
 }
