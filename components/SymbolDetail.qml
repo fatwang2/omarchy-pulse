@@ -3,14 +3,15 @@ import qs.Commons
 import qs.Ui
 import "../Model.js" as Model
 
-// The quote detail. Everything here is a fact the row had no space for, in the
-// order someone asks for it: what it costs, what it did today, and where the
-// number came from. Provenance is not an afterthought — a delayed price and a
-// real-time price look identical until the panel says which one this is.
+// The quote detail: price, the chart at reading size, then the facts in the
+// order someone asks for them — what it did today, and where the number came
+// from. Provenance is not an afterthought: a delayed price and a real-time
+// price look identical until the panel says which one this is.
 Column {
   id: root
 
   required property var row
+  required property var candleStore
   required property color textColor
   required property color riseColor
   required property color fallColor
@@ -31,6 +32,30 @@ Column {
     ? mutedColor
     : (changePercent > 0 ? riseColor : (changePercent < 0 ? fallColor : textColor))
 
+  // Which chart the detail shows. Intraday is the quote's own series and
+  // costs nothing; the candle periods fetch through the store on first look.
+  property string chartPeriod: "intraday"
+
+  function ensureCandles() {
+    if (!root.row || root.chartPeriod === "intraday") return
+    root.candleStore.ensure(root.row.key, root.chartPeriod)
+  }
+
+  onChartPeriodChanged: ensureCandles()
+
+  // Reset to the session view only when the instrument changes. The row
+  // object itself is rebuilt on every price tick, so watching the object
+  // would snap a candle chart back to intraday seconds after it was chosen.
+  property string _shownKey: ""
+  onRowChanged: {
+    var key = root.row ? root.row.key : ""
+    if (key !== root._shownKey) {
+      root._shownKey = key
+      root.chartPeriod = "intraday"
+    }
+  }
+  onVisibleChanged: if (visible) ensureCandles()
+
   function fieldText(value) {
     return (typeof value === "number" && isFinite(value)) ? Model.formatPrice(value) : "—"
   }
@@ -45,8 +70,7 @@ Column {
 
   function timestampText() {
     if (!hasQuote || !quote.timestampMs) return "—"
-    var date = new Date(quote.timestampMs)
-    return Qt.formatDateTime(date, "yyyy-MM-dd HH:mm:ss")
+    return Qt.formatDateTime(new Date(quote.timestampMs), "yyyy-MM-dd HH:mm:ss")
   }
 
   spacing: Style.space(10)
@@ -55,7 +79,7 @@ Column {
     required property string label
     required property string value
     property color valueColor: root.textColor
-    implicitHeight: Style.space(28)
+    implicitHeight: Style.space(26)
 
     Text {
       anchors.left: parent.left
@@ -75,6 +99,8 @@ Column {
       elide: Text.ElideRight
     }
   }
+
+  // --- Price block ----------------------------------------------------------
 
   Item {
     width: parent.width
@@ -125,11 +151,47 @@ Column {
     }
   }
 
-  Rectangle {
+  // --- Chart ----------------------------------------------------------------
+
+  ButtonGroup {
     width: parent.width
-    height: 1
-    color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.15)
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+    options: [
+      { value: "intraday", label: "1D" },
+      { value: "day", label: "D" },
+      { value: "week", label: "W" },
+      { value: "month", label: "M" }
+    ]
+    value: root.chartPeriod
+    onChanged: function (period) { root.chartPeriod = period }
   }
+
+  IntradayChart {
+    visible: root.chartPeriod === "intraday"
+    width: parent.width
+    height: Style.space(120)
+    series: root.hasQuote ? root.quote.series : null
+    previousClose: root.hasQuote ? Number(root.quote.previousClose || 0) : 0
+    lineColor: root.movementColor
+    guideColor: root.textColor
+    textColor: root.textColor
+  }
+
+  CandleChart {
+    visible: root.chartPeriod !== "intraday"
+    width: parent.width
+    height: Style.space(120)
+    candles: root.row ? root.candleStore.candlesFor(root.row.key, root.chartPeriod) : null
+    loading: root.row ? root.candleStore.loading(root.row.key, root.chartPeriod) : false
+    riseColor: root.riseColor
+    fallColor: root.fallColor
+    textColor: root.textColor
+  }
+
+  PanelSeparator { foreground: root.textColor }
+
+  // --- Session facts --------------------------------------------------------
 
   Column {
     width: parent.width
@@ -172,11 +234,9 @@ Column {
     }
   }
 
-  Rectangle {
-    width: parent.width
-    height: 1
-    color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.15)
-  }
+  PanelSeparator { foreground: root.textColor }
+
+  // --- Provenance -----------------------------------------------------------
 
   Column {
     width: parent.width

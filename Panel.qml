@@ -77,6 +77,8 @@ Panel {
 
   SymbolSearch { id: symbolSearch }
 
+  CandleStore { id: candleStore }
+
   // The panel is the reason to fetch, but not the only one: a pinned or
   // carousel bar label needs prices whether or not anything is open. The feed
   // subscribes to every list, so switching tabs shows prices instead of an
@@ -153,6 +155,28 @@ Panel {
     }
     function remove(symbol: string): string {
       return watchlist.removeSymbol(symbol) ? "removed" : "not on the list"
+    }
+    // Opens one row's detail — the scripted stand-in for clicking it.
+    function detail(symbol: string): string {
+      var key = watchlist.canonical(symbol)
+      for (var i = 0; i < root.quoteRows.length; i++) {
+        if (root.quoteRows[i].key === key) {
+          root.settingsOpen = false
+          watchlistView.selectedIndex = i
+          watchlistView.detailOpen = true
+          return "open"
+        }
+      }
+      return "not on the active list"
+    }
+    function chartPeriod(period: string): string {
+      if (!watchlistView.detailOpen) return "no detail open"
+      detailView.chartPeriod = period
+      return detailView.chartPeriod
+    }
+    function edit(): string {
+      listTabs.editMode = !listTabs.editMode
+      return listTabs.editMode ? "editing" : "done"
     }
     function lists(): string { return JSON.stringify(watchlist.listNames) }
     function selectList(name: string): string {
@@ -235,13 +259,14 @@ Panel {
       anchors.fill: parent
       // While a text editor holds focus every key belongs to it, including the
       // panel's own single-letter shortcuts.
-      blocked: root.addOpen || root.settingsOpen
+      blocked: root.addOpen || root.settingsOpen || listTabs.renaming !== ""
       onMoveRequested: function (dx, dy) { if (dy !== 0) watchlistView.moveSelection(dy) }
       onActivateRequested: {
         if (watchlistView.rows.length > 0) watchlistView.detailOpen = true
       }
       onCloseRequested: {
-        if (root.addOpen) { root.addOpen = false; addRow.clear() }
+        if (listTabs.editMode) listTabs.editMode = false
+        else if (root.addOpen) { root.addOpen = false; addRow.clear() }
         else if (root.settingsOpen) root.settingsOpen = false
         else if (watchlistView.detailOpen) watchlistView.detailOpen = false
         else root.close()
@@ -252,6 +277,7 @@ Panel {
         if (key === "/" || key === "f" || key === "a") root.openAdd()
         else if (key === "r") feed.refresh()
         else if (key === "s") { watchlistView.detailOpen = false; root.addOpen = false; root.settingsOpen = true }
+        else if (key === "e" && !watchlistView.detailOpen && !root.settingsOpen) listTabs.editMode = !listTabs.editMode
         else if (key >= "1" && key <= "9") {
           var names = watchlist.listNames
           var index = Number(key) - 1
@@ -272,12 +298,31 @@ Panel {
           width: parent.width
           implicitHeight: Style.space(30)
 
+          // The left edge is identity on the main page and navigation in a
+          // subview: back sits where reading starts, and the title names
+          // where you are — the way macOS navigation does it.
           Row {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            height: Style.space(22)
             spacing: Style.space(7)
 
+            readonly property bool inSubview: watchlistView.detailOpen || root.settingsOpen
+
+            PanelActionButton {
+              visible: parent.inSubview
+              iconText: "󰁍"
+              tooltipText: "Back (Esc)"
+              foreground: root.muted
+              fontFamily: root.fontFamily
+              onClicked: {
+                if (root.settingsOpen) root.settingsOpen = false
+                else watchlistView.detailOpen = false
+              }
+            }
+
             PulseLogo {
+              visible: !parent.inSubview
               anchors.verticalCenter: parent.verticalCenter
               width: Style.space(15)
               height: width
@@ -285,7 +330,11 @@ Panel {
             }
             Text {
               anchors.verticalCenter: parent.verticalCenter
-              text: "Pulse"
+              text: parent.inSubview
+                ? (root.settingsOpen
+                    ? "Settings"
+                    : (watchlistView.selectedRow ? watchlistView.selectedRow.displayCode : ""))
+                : "Pulse"
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.subtitle
@@ -293,31 +342,12 @@ Panel {
             }
           }
 
-          // A Row is a positioner: its children may not anchor vertically, so
-          // each child centres itself by filling the row's height instead.
           Row {
             id: headerTools
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             height: Style.space(22)
             spacing: Style.space(2)
-
-            Text {
-              visible: watchlistView.detailOpen || root.settingsOpen
-              height: parent.height
-              verticalAlignment: Text.AlignVCenter
-              rightPadding: Style.space(8)
-              text: "← Back"
-              color: root.muted
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.caption
-              TapHandler {
-                onTapped: {
-                  if (root.settingsOpen) root.settingsOpen = false
-                  else watchlistView.detailOpen = false
-                }
-              }
-            }
 
             PanelActionButton {
               visible: !root.settingsOpen && !watchlistView.detailOpen
@@ -358,6 +388,7 @@ Panel {
 
         // --- Named lists. ---
         ListTabs {
+          id: listTabs
           visible: !root.settingsOpen && !watchlistView.detailOpen
           width: parent.width
           names: watchlist.listNames
@@ -367,12 +398,17 @@ Panel {
           panelFontFamily: root.fontFamily
           onSelected: function (name) { watchlist.selectList(name) }
           onAddRequested: watchlist.addList("List " + (watchlist.listNames.length + 1))
+          onRenameRequested: function (name, newName) { watchlist.renameList(name, newName) }
+          onRemoveRequested: function (name) { watchlist.removeList(name) }
         }
 
         WatchlistView {
           id: watchlistView
           visible: !detailOpen && !root.settingsOpen
           width: parent.width
+          editMode: listTabs.editMode
+          onRowMoveRequested: function (key, delta) { watchlist.moveSymbol(key, delta) }
+          onRowRemoveRequested: function (key) { watchlist.removeSymbol(key) }
           rows: root.quoteRows
           status: feed.status
           message: watchlist.error
@@ -394,9 +430,11 @@ Panel {
         }
 
         SymbolDetail {
+          id: detailView
           visible: !root.settingsOpen && watchlistView.detailOpen && watchlistView.selectedRow !== null
           width: parent.width
           row: watchlistView.selectedRow
+          candleStore: candleStore
           nowMs: root.nowMs
           textColor: root.foreground
           riseColor: palette.rise

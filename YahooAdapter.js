@@ -318,6 +318,61 @@ function parseQuote(symbol, payload, extended) {
   return quote
 }
 
+// --- Candles --------------------------------------------------------------
+//
+// Same chart endpoint as quotes, different window. The macOS app's periods:
+// daily, weekly and monthly candlesticks; intraday is already on the quote as
+// `series`, so it never needs a second request.
+
+var CANDLE_PERIODS = {
+  day: { interval: "1d", range: "6mo" },
+  week: { interval: "1wk", range: "2y" },
+  month: { interval: "1mo", range: "10y" }
+}
+
+function candleRequest(symbol, period) {
+  var spec = CANDLE_PERIODS[String(period || "")]
+  var wire = wireSymbol(symbol)
+  if (!spec || !wire) return null
+  return {
+    url: BASE + encodeURIComponent(wire)
+      + "?interval=" + spec.interval + "&range=" + spec.range + "&includePrePost=false",
+    period: period
+  }
+}
+
+// One candle per completed bar. Yahoo pads the tail with null rows and often
+// appends a live, incomplete bar for the current period; the nulls are
+// dropped, the live bar is kept — the macOS app shows it too, and a chart
+// whose last candle is yesterday reads as stale.
+function parseCandles(payload) {
+  var result = chartResult(payload)
+  if (!result) return null
+  var timestamps = result.timestamp
+  var series = ohlcSeries(result)
+  if (!timestamps || !series) return null
+  var opens = series.open || []
+  var highs = series.high || []
+  var lows = series.low || []
+  var closes = series.close || []
+  var volumes = series.volume || []
+
+  var candles = []
+  for (var i = 0; i < timestamps.length; i++) {
+    var open = opens[i], high = highs[i], low = lows[i], close = closes[i]
+    if (typeof open !== "number" || !isFinite(open)) continue
+    if (typeof high !== "number" || !isFinite(high)) continue
+    if (typeof low !== "number" || !isFinite(low)) continue
+    if (typeof close !== "number" || !isFinite(close)) continue
+    candles.push({
+      timestampMs: timestamps[i] * 1000,
+      open: open, high: high, low: low, close: close,
+      volume: (typeof volumes[i] === "number" && isFinite(volumes[i])) ? volumes[i] : 0
+    })
+  }
+  return candles.length > 0 ? candles : null
+}
+
 // --- Search ---------------------------------------------------------------
 
 var SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
@@ -437,6 +492,9 @@ if (typeof module !== "undefined") module.exports = {
   SEARCHABLE_TYPES: SEARCHABLE_TYPES,
   supports: supports,
   requestFor: requestFor,
+  CANDLE_PERIODS: CANDLE_PERIODS,
+  candleRequest: candleRequest,
+  parseCandles: parseCandles,
   parseQuote: parseQuote,
   latestClose: latestClose,
   marketStateFor: marketStateFor,

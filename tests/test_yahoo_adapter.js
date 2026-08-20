@@ -158,3 +158,34 @@ test("a response with nothing to draw yields no series rather than a flat line",
     meta: {}, timestamp: [1], indicators: { quote: [{ close: [100] }] }
   }, false), null)
 })
+
+test("candle windows follow the macOS app's periods", () => {
+  const symbol = SymbolID.parse("AAPL")
+  assert.match(Yahoo.candleRequest(symbol, "day").url, /interval=1d&range=6mo/)
+  assert.match(Yahoo.candleRequest(symbol, "week").url, /interval=1wk&range=2y/)
+  assert.match(Yahoo.candleRequest(symbol, "month").url, /interval=1mo&range=10y/)
+  assert.equal(Yahoo.candleRequest(symbol, "intraday"), null)
+  assert.equal(Yahoo.candleRequest(SymbolID.parse("BTC/USDT"), "day"), null)
+})
+
+test("candles drop Yahoo's null padding and keep the live bar", () => {
+  const payload = { chart: { result: [{
+    timestamp: [100, 200, 300, 400],
+    meta: {},
+    indicators: { quote: [{
+      open: [10, null, 12, 13], high: [11, null, 13, 14],
+      low: [9, null, 11, 12], close: [10.5, null, 12.5, 13.5],
+      volume: [1000, null, 2000, null]
+    }] }
+  }], error: null } }
+  const candles = Yahoo.parseCandles(payload)
+  assert.equal(candles.length, 3)
+  assert.deepEqual(candles[0], { timestampMs: 100000, open: 10, high: 11, low: 9, close: 10.5, volume: 1000 })
+  // A missing volume is zero, not a dropped candle — indices carry no volume.
+  assert.equal(candles[2].volume, 0)
+})
+
+test("no candles is null, not an empty chart", () => {
+  assert.equal(Yahoo.parseCandles({}), null)
+  assert.equal(Yahoo.parseCandles({ chart: { result: [{ timestamp: [], meta: {}, indicators: { quote: [{}] } }] } }), null)
+})

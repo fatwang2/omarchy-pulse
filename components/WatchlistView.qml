@@ -18,23 +18,34 @@ Column {
   property string message: ""
   property double nowMs: 0
 
-  property int selectedIndex: 0
+  // -1 is "nothing selected", which is the resting state: selection exists to
+  // aim the keyboard and the detail view, and once the detail closes it has
+  // nothing left to say — a row that stays lit reads as meaning something.
+  property int selectedIndex: -1
   property bool detailOpen: false
+  property bool editMode: false
 
   readonly property var selectedRow: (selectedIndex >= 0 && selectedIndex < rows.length)
     ? rows[selectedIndex]
     : null
 
+  onDetailOpenChanged: if (!detailOpen) selectedIndex = -1
+
   function moveSelection(delta) {
     var count = rows.length
     if (count === 0) return
-    selectedIndex = Math.max(0, Math.min(count - 1, selectedIndex + delta))
+    // From rest, the first press lands on the edge it came from.
+    if (selectedIndex < 0) selectedIndex = delta > 0 ? 0 : count - 1
+    else selectedIndex = Math.max(0, Math.min(count - 1, selectedIndex + delta))
     list.positionViewAtIndex(selectedIndex, ListView.Contain)
   }
 
   onRowsChanged: {
-    if (selectedIndex >= rows.length) selectedIndex = Math.max(0, rows.length - 1)
+    if (selectedIndex >= rows.length) selectedIndex = rows.length - 1
   }
+
+  signal rowMoveRequested(string key, int delta)
+  signal rowRemoveRequested(string key)
 
   spacing: Style.space(8)
 
@@ -68,6 +79,9 @@ Column {
       striped: index % 2 === 1
       selected: index === root.selectedIndex
       nowMs: root.nowMs
+      editMode: root.editMode
+      canMoveUp: index > 0
+      canMoveDown: index < root.rows.length - 1
       textColor: root.textColor
       riseColor: root.riseColor
       fallColor: root.fallColor
@@ -77,6 +91,8 @@ Column {
         root.selectedIndex = index
         root.detailOpen = true
       }
+      onMoveRequested: function (delta) { root.rowMoveRequested(modelData.key, delta) }
+      onRemoveRequested: root.rowRemoveRequested(modelData.key)
     }
   }
 

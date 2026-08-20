@@ -15,9 +15,6 @@ Column {
   required property color mutedColor
   required property string panelFontFamily
 
-  // Which list name is being renamed inline, or "" when none is.
-  property string renamingList: ""
-
   spacing: Style.space(10)
 
   // --- Bar ------------------------------------------------------------------
@@ -93,119 +90,6 @@ Column {
     ]
     value: String(root.watchlist.pollIntervalSeconds)
     onChanged: function (seconds) { root.watchlist.setValue("pollIntervalSeconds", Number(seconds)) }
-  }
-
-  PanelSeparator { foreground: root.textColor }
-
-  // --- Lists ----------------------------------------------------------------
-
-  PanelSectionHeader {
-    text: "LISTS"
-    foreground: root.textColor
-    fontFamily: root.panelFontFamily
-  }
-
-  Column {
-    width: parent.width
-    spacing: 0
-
-    Repeater {
-      model: root.watchlist.listNames
-
-      Rectangle {
-        id: listRow
-        required property string modelData
-        required property int index
-        readonly property bool renaming: root.renamingList === modelData
-        readonly property int symbolCount: {
-          var config = root.watchlist.config
-          var i = config.lists.map(function (l) { return l.name }).indexOf(modelData)
-          return i >= 0 ? config.lists[i].symbols.length : 0
-        }
-
-        width: parent.width
-        implicitHeight: Style.space(30)
-        radius: 0
-        color: listHover.hovered
-          ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.06)
-          : (index % 2 === 1
-              ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.025)
-              : "transparent")
-
-        HoverHandler { id: listHover }
-
-        Row {
-          visible: !listRow.renaming
-          anchors.left: parent.left
-          anchors.leftMargin: Style.space(6)
-          anchors.right: listActions.left
-          anchors.rightMargin: Style.space(6)
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: Style.space(6)
-
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: listRow.modelData
-            color: root.textColor
-            font.family: root.panelFontFamily
-            font.pixelSize: Style.font.bodySmall
-            elide: Text.ElideRight
-          }
-          Text {
-            anchors.verticalCenter: parent.verticalCenter
-            text: listRow.symbolCount + (listRow.symbolCount === 1 ? " symbol" : " symbols")
-            color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.35)
-            font.family: root.panelFontFamily
-            font.pixelSize: Style.font.caption
-          }
-        }
-
-        TextField {
-          visible: listRow.renaming
-          anchors.left: parent.left
-          anchors.right: listActions.left
-          anchors.rightMargin: Style.space(6)
-          anchors.verticalCenter: parent.verticalCenter
-          foreground: root.textColor
-          text: listRow.modelData
-          onVisibleChanged: if (visible) { forceActiveFocus(); selectAll() }
-          onAccepted: {
-            root.watchlist.renameList(listRow.modelData, text)
-            root.renamingList = ""
-          }
-          Keys.onEscapePressed: root.renamingList = ""
-        }
-
-        Row {
-          id: listActions
-          anchors.right: parent.right
-          anchors.rightMargin: Style.space(4)
-          anchors.verticalCenter: parent.verticalCenter
-          spacing: 0
-          visible: !listRow.renaming
-
-          PanelActionButton {
-            iconText: "󰑕"
-            tooltipText: "Rename"
-            foreground: root.mutedColor
-            fontFamily: root.panelFontFamily
-            onClicked: root.renamingList = listRow.modelData
-          }
-
-          PanelActionButton {
-            // The last list is not removable; the button says so by dimming
-            // rather than by disappearing and leaving the rows misaligned.
-            enabled: root.watchlist.listNames.length > 1
-            opacity: enabled ? 1.0 : 0.3
-            iconText: "󰩺"
-            tooltipText: enabled ? "Delete list" : "The last list stays"
-            foreground: root.mutedColor
-            fontFamily: root.panelFontFamily
-            onClicked: root.watchlist.removeList(listRow.modelData)
-          }
-        }
-      }
-    }
   }
 
   PanelSeparator { foreground: root.textColor }
