@@ -50,7 +50,8 @@ node -e '
 const fs = require("fs")
 const SymbolID = require(process.argv[1] + "/tests/qmljs.js").load("SymbolID.js")
 const config = JSON.parse(fs.readFileSync(process.argv[1] + "/watchlist.example.json", "utf8"))
-for (const raw of config.symbols) {
+const symbols = (config.lists || [{symbols: config.symbols}]).flatMap(l => l.symbols)
+for (const raw of symbols) {
   if (!SymbolID.parse(raw)) { console.error("FAIL: example watchlist has an unresolvable symbol: " + raw); process.exit(1) }
 }
 if (!SymbolID.parse(config.pinnedSymbol)) { console.error("FAIL: example pinnedSymbol does not resolve"); process.exit(1) }

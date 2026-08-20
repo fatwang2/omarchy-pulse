@@ -33,16 +33,33 @@ Either way the first install seeds a starter watchlist at
 
 ## The watchlist
 
-Two editors, one file. Press `s` or click the gear to add symbols by search,
-reorder them, and pick how the bar reads; or open
-`~/.config/omarchy/pulse/watchlist.json` in any text editor. Edits from either
-side land without restarting the shell.
+The panel follows the macOS popover: named lists as tabs, the magnifier to
+add, the row itself to inspect, remove or reorder (open its detail), and the
+gear for how the plugin behaves. Everything writes
+`~/.config/omarchy/pulse/watchlist.json`, which any text editor can edit too —
+changes from either side land without restarting the shell.
 
-The file is the source of truth, because the settings panel Omarchy's manifest
-schema is designed for does not exist yet — `barWidget.schema` is registered
-into the widget registry and read by nothing in 4.0.0. When it ships, the
-scalar options can move into it; the ordered list of instruments cannot, which
-is why this editor exists at all.
+```json
+{
+  "version": 2,
+  "lists": [
+    { "name": "Watching", "symbols": ["AAPL", "NVDA", "^GSPC"] },
+    { "name": "HK", "symbols": ["00700.HK", "^HSI"] }
+  ],
+  "activeList": "Watching",
+  "pollIntervalSeconds": 60,
+  "barDisplay": "icon",
+  "pinnedSymbol": "NVDA",
+  "carouselIntervalSeconds": 6
+}
+```
+
+A version-1 file (a bare `symbols` array) is migrated to one list on first
+read. The file stays the source of truth because the settings panel Omarchy's
+manifest schema is designed for does not exist yet — `barWidget.schema` is
+registered into the widget registry and read by nothing in 4.0.0. When it
+ships, the scalar options can move into it; ordered lists of instruments
+cannot, which is why the panel edits the file.
 
 ```json
 {
@@ -57,10 +74,11 @@ is why this editor exists at all.
 
 | Key | What it does |
 |---|---|
-| `symbols` | What to watch, in the order you want it grouped |
+| `lists` | Named watchlists; each holds `name` and ordered `symbols` |
+| `activeList` | Which list the panel opens on |
 | `pollIntervalSeconds` | Refresh cadence, clamped to 15–3600 |
 | `barDisplay` | `icon` (discreet), `pinned` (one quote in the bar), `carousel` (rotates) |
-| `pinnedSymbol` | Which symbol `pinned` shows |
+| `pinnedSymbol` | Which symbol `pinned` shows; read across every list |
 | `carouselIntervalSeconds` | How long each symbol holds the bar in `carousel` |
 
 ### Writing symbols
@@ -87,9 +105,11 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 
 ## Reading the panel
 
-- Rows are grouped by market and hold watchlist order inside a market. Nothing
-  re-sorts on a value that moves — ordering that shuffles as prices tick is
-  worse than ordering that holds still.
+- Rows keep the list's own order, verbatim: the list is your ranking, and
+  "move up" in a row's detail edits the same order the rows display. Nothing
+  re-sorts — least of all on a value that moves.
+- The identity column is capped so the session line gets the width. An elided
+  name shows in full after hovering the row for a moment.
 - Each priced row carries the current session's intraday line. It comes from
   the same Yahoo chart response as the quote, so it adds no request or delay.
 - Both Chinese boards share one `CN` badge and both Korean boards share `KR`;
@@ -99,8 +119,10 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 - `STALE` means a price has stopped arriving **while its market is open**, past
   the source's own delay. A closed market's last print is the close — final,
   not stale — and is never marked.
-- Press `/` or `f` to filter, `r` to refresh, `s` for settings, `↑`/`↓` to
-  move, `Enter` for the quote detail, `Esc` to back out.
+- Press `/` (or `f`, `a`) to add a symbol, `r` to refresh, `s` for settings,
+  `1`–`9` to switch lists, `↑`/`↓` to move, `Enter` for the quote detail,
+  `Esc` to back out. The detail view also removes the symbol from the list or
+  moves it up and down.
 
 ## Adding symbols
 
@@ -154,8 +176,10 @@ omarchy-shell pulse.omarchy status   # symbols, quote count, per-row errors, fee
 omarchy-shell pulse.omarchy settings          # toggle the settings view
 omarchy-shell pulse.omarchy add 7203.T        # -> added | rejected
 omarchy-shell pulse.omarchy remove TSM        # -> removed | not on the list
-omarchy-shell pulse.omarchy find nvidia       # run the settings search
+omarchy-shell pulse.omarchy find nvidia       # run the add search
 omarchy-shell pulse.omarchy results           # what that search returned
+omarchy-shell pulse.omarchy lists             # the named lists
+omarchy-shell pulse.omarchy selectList HK     # switch the active tab
 ```
 
 `add` and `remove` write the same file the settings view does, so they are also

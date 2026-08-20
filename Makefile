@@ -1,5 +1,7 @@
 QMLLINT := /usr/lib/qt6/bin/qmllint
 QML_FILES := Panel.qml QuoteFeed.qml Watchlist.qml SymbolSearch.qml ThemePalette.qml \
+	components/ListTabs.qml \
+	components/AddSymbolRow.qml \
 	components/PulseLogo.qml \
 	components/StatusDot.qml \
 	components/MarketBadge.qml \
@@ -14,7 +16,7 @@ QML_FILES := Panel.qml QuoteFeed.qml Watchlist.qml SymbolSearch.qml ThemePalette
 test: test-js test-source
 
 test-js:
-	node --test tests/test_market.js tests/test_symbol_id.js tests/test_yahoo_adapter.js tests/test_yahoo_search.js tests/test_model.js
+	node --test tests/test_market.js tests/test_symbol_id.js tests/test_yahoo_adapter.js tests/test_yahoo_search.js tests/test_model.js tests/test_config.js
 
 test-source:
 	bash tests/test_panel_source.sh

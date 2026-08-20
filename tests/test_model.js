@@ -49,13 +49,13 @@ test("derived figures come from price and previous close, never from the source"
   assert.equal(Model.amplitudePercent(quote("AAPL", { high: 1 })), null)
 })
 
-test("rows group by market and hold watchlist order inside one", () => {
+test("rows keep the list's own order verbatim", () => {
+  // The list is the user's ranking. "Move up" edits the same order the rows
+  // display, so nothing may re-sort it — not even by market.
   let state = Model.applySymbols(Model.initialState(),
     ["700.HK", "NVDA", "600519.SH", "AAPL", "7203.T"])
-  const keys = Model.rows(state).map(r => r.key)
-  // US first, then HK, then Shanghai, then Tokyo — and NVDA stays ahead of
-  // AAPL because that is the order the file gave them.
-  assert.deepEqual(keys, ["NVDA", "AAPL", "700.HK", "600519.SH", "7203.T"])
+  assert.deepEqual(Model.rows(state).map(r => r.key),
+    ["700.HK", "NVDA", "600519.SH", "AAPL", "7203.T"])
 })
 
 test("row order does not move when a price does", () => {
@@ -71,15 +71,16 @@ test("both Chinese boards and both Korean boards share one badge", () => {
   assert.deepEqual(Model.rows(state).map(r => r.marketLabel), ["CN", "CN", "KR", "KR"])
 })
 
-test("filtering is display-only and matches code or name", () => {
+test("a tab draws its own symbols with quotes kept warm for every tab", () => {
+  // The state subscribes to the union of all lists; a tab renders its subset.
   let state = Model.applySymbols(Model.initialState(), ["AAPL", "NVDA", "700.HK"])
-  state = Model.applyQuote(state, quote("AAPL", { name: "Apple Inc." }))
   state = Model.applyQuote(state, quote("700.HK", { name: "Tencent Holdings" }))
-  const rows = Model.rows(state)
-  assert.deepEqual(Model.filterRows(rows, "aapl").map(r => r.key), ["AAPL"])
-  assert.deepEqual(Model.filterRows(rows, "tencent").map(r => r.key), ["700.HK"])
-  assert.deepEqual(Model.filterRows(rows, "").map(r => r.key), rows.map(r => r.key))
-  assert.deepEqual(Model.filterRows(rows, "zzz"), [])
+  const rows = Model.rowsForSymbols(state, ["700.HK", "NVDA"])
+  assert.deepEqual(rows.map(r => r.key), ["700.HK", "NVDA"])
+  assert.equal(rows[0].name, "Tencent Holdings")
+  // A key the state no longer quotes still rows up (as an empty row), and an
+  // empty tab is an empty list, not an error.
+  assert.deepEqual(Model.rowsForSymbols(state, []), [])
 })
 
 test("a quote stops being trusted after five minutes, while its market is open", () => {

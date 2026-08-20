@@ -58,6 +58,14 @@ not polled at all. Do not add a parallel fan-out, a shorter floor than the
 15-second clamp in `Watchlist.qml`, or a refresh on a timer faster than the
 source can actually change.
 
+## Ordering is the user's
+
+Rows render the active list's order verbatim. "Move up" in the quote detail
+edits the same order the rows display, so nothing anywhere may re-sort the
+list — not by market, not alphabetically, and least of all by a value that
+moves. If a grouped presentation is ever wanted, it must be a presentation
+of an unchanged order, and the move buttons must disappear with it.
+
 ## Settings live in the file
 
 `~/.config/omarchy/pulse/watchlist.json` is the source of truth. The settings

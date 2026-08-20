@@ -123,14 +123,20 @@ function isStale(quote, nowMs) {
 
 // --- Rows -----------------------------------------------------------------
 
-// Rows are grouped by market and stable within a market: they keep watchlist
-// order rather than picking up an alphabetical or price-driven tiebreaker.
-// Ordering that shuffles as prices tick is worse than ordering that holds
-// still, so nothing here sorts on a value that moves.
-function rows(state) {
+// Rows keep the list's own order, verbatim. The list is the user's ranking —
+// the macOS app lets it be dragged into shape — and "move up" in the detail
+// view edits the same order the rows display, so the button's effect is the
+// effect you see. Nothing here sorts at all, least of all on a value that
+// moves.
+//
+// The key list is a parameter because the state quotes every symbol on every
+// list, while a tab shows only its own. Quotes for the other tabs stay warm in
+// the state, so switching tabs paints prices instead of an empty list.
+function rowsForSymbols(state, symbolKeys) {
   var buckets = []
-  for (var i = 0; i < state.symbols.length; i++) {
-    var key = state.symbols[i]
+  var source = (symbolKeys && typeof symbolKeys.length === "number") ? symbolKeys : []
+  for (var i = 0; i < source.length; i++) {
+    var key = source[i]
     var parsed = SymbolID.parse(key)
     if (!parsed) continue
     var quote = state.quotes[key] || null
@@ -150,24 +156,11 @@ function rows(state) {
       order: i
     })
   }
-  buckets.sort(function (a, b) {
-    var byMarket = Market.priority(a.market) - Market.priority(b.market)
-    return byMarket !== 0 ? byMarket : a.order - b.order
-  })
   return buckets
 }
 
-// Display-only narrowing. Every symbol stays subscribed while a filter is
-// active, so clearing it never costs a refetch. Matching is case-insensitive
-// across both code and name, so `tsm`, `TSM` and `taiwan` reach the same row.
-function filterRows(rowList, filterText) {
-  var needle = String(filterText || "").replace(/^\s+|\s+$/g, "").toLowerCase()
-  if (!needle) return rowList
-  return rowList.filter(function (row) {
-    if (row.displayCode.toLowerCase().indexOf(needle) >= 0) return true
-    if (row.key.toLowerCase().indexOf(needle) >= 0) return true
-    return !!row.name && row.name.toLowerCase().indexOf(needle) >= 0
-  })
+function rows(state) {
+  return rowsForSymbols(state, state.symbols)
 }
 
 // --- Formatting -----------------------------------------------------------
@@ -237,7 +230,7 @@ if (typeof module !== "undefined") module.exports = {
   stalenessThresholdMs: stalenessThresholdMs,
   isStale: isStale,
   rows: rows,
-  filterRows: filterRows,
+  rowsForSymbols: rowsForSymbols,
   formatPrice: formatPrice,
   formatPercent: formatPercent,
   formatChange: formatChange,

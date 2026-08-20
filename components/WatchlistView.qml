@@ -1,12 +1,10 @@
 import QtQuick
 import qs.Commons
-import qs.Ui
 import "../Model.js" as Model
 
-// The watchlist. Rows are keyed by symbol so a price tick updates a delegate in
-// place instead of rebuilding the list — handing a fresh array to the view on
-// every refresh destroys and recreates every delegate, which flickers the list
-// and throws away the scroll position.
+// The rows of the active list, with the feed's state as a footer — where the
+// macOS popover keeps its "Streaming live" line. The view renders; membership,
+// tabs and search live with the panel.
 Column {
   id: root
 
@@ -14,110 +12,31 @@ Column {
   required property color textColor
   required property color riseColor
   required property color fallColor
-  required property color accentColor
   required property color mutedColor
   required property string panelFontFamily
   property string status: "idle"
   property string message: ""
   property double nowMs: 0
 
-  property string filterText: ""
-  property bool searching: false
   property int selectedIndex: 0
   property bool detailOpen: false
 
-  readonly property var visibleRows: Model.filterRows(rows, filterText)
-  readonly property var selectedRow: (selectedIndex >= 0 && selectedIndex < visibleRows.length)
-    ? visibleRows[selectedIndex]
+  readonly property var selectedRow: (selectedIndex >= 0 && selectedIndex < rows.length)
+    ? rows[selectedIndex]
     : null
 
-  signal refreshRequested()
-
   function moveSelection(delta) {
-    var count = visibleRows.length
+    var count = rows.length
     if (count === 0) return
     selectedIndex = Math.max(0, Math.min(count - 1, selectedIndex + delta))
     list.positionViewAtIndex(selectedIndex, ListView.Contain)
   }
 
-  function focusSearch() {
-    searching = true
-    filterField.forceActiveFocus()
-  }
-
-  function clearSearch() {
-    filterText = ""
-    searching = false
-    filterField.text = ""
-  }
-
-  onVisibleRowsChanged: {
-    if (selectedIndex >= visibleRows.length) selectedIndex = Math.max(0, visibleRows.length - 1)
+  onRowsChanged: {
+    if (selectedIndex >= rows.length) selectedIndex = Math.max(0, rows.length - 1)
   }
 
   spacing: Style.space(8)
-
-  Item {
-    id: header
-    width: parent.width
-    implicitHeight: Style.space(24)
-
-    // The count line names the filter's effect rather than leaving a short list
-    // unexplained: "3 of 18" is the difference between a filter and an outage.
-    Text {
-      anchors.left: parent.left
-      anchors.verticalCenter: parent.verticalCenter
-      visible: !root.searching
-      text: root.filterText !== ""
-        ? (root.visibleRows.length + " of " + root.rows.length + " symbols")
-        : (root.rows.length + (root.rows.length === 1 ? " symbol" : " symbols"))
-      color: root.mutedColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.caption
-    }
-
-    TextField {
-      id: filterField
-      anchors.left: parent.left
-      anchors.right: searchButton.left
-      anchors.rightMargin: Style.space(6)
-      anchors.verticalCenter: parent.verticalCenter
-      visible: root.searching
-      placeholderText: "Filter"
-      onTextChanged: root.filterText = text
-      Keys.onEscapePressed: root.clearSearch()
-    }
-
-    Row {
-      id: searchButton
-      anchors.right: statusDot.left
-      anchors.rightMargin: Style.space(8)
-      anchors.verticalCenter: parent.verticalCenter
-      spacing: Style.space(4)
-
-      Text {
-        anchors.verticalCenter: parent.verticalCenter
-        text: root.searching ? "✕" : "⌕"
-        color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.55)
-        font.family: root.panelFontFamily
-        font.pixelSize: Style.font.bodySmall
-      }
-      TapHandler {
-        onTapped: root.searching ? root.clearSearch() : root.focusSearch()
-      }
-    }
-
-    StatusDot {
-      id: statusDot
-      anchors.right: parent.right
-      anchors.verticalCenter: parent.verticalCenter
-      status: root.status
-      textColor: root.textColor
-      liveColor: root.riseColor
-      errorColor: root.fallColor
-      panelFontFamily: root.panelFontFamily
-    }
-  }
 
   Text {
     width: parent.width
@@ -133,11 +52,11 @@ Column {
     id: list
     width: parent.width
     // The list is the panel's only elastic surface: it takes what the header,
-    // the message line and the panel's own maximum leave it.
+    // the tabs and the footer leave it.
     height: Math.min(contentHeight, Style.space(520))
-    visible: root.visibleRows.length > 0
+    visible: root.rows.length > 0
     clip: true
-    model: root.visibleRows
+    model: root.rows
     currentIndex: root.selectedIndex
     boundsBehavior: Flickable.StopAtBounds
     reuseItems: true
@@ -163,13 +82,37 @@ Column {
 
   Text {
     width: parent.width
-    visible: root.visibleRows.length === 0
-    text: root.rows.length === 0
-      ? "No symbols yet. Add them to ~/.config/omarchy/pulse/watchlist.json"
-      : "Nothing matches “" + root.filterText + "”"
+    visible: root.rows.length === 0
+    text: "This list is empty. Press / to add a symbol."
     color: root.mutedColor
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.caption
     wrapMode: Text.WordWrap
+  }
+
+  // The feed footer: either the panel has current prices or it says why not,
+  // in the corner the eye checks last.
+  Item {
+    width: parent.width
+    implicitHeight: Style.space(18)
+
+    StatusDot {
+      anchors.left: parent.left
+      anchors.verticalCenter: parent.verticalCenter
+      status: root.status
+      textColor: root.textColor
+      liveColor: root.riseColor
+      errorColor: root.fallColor
+      panelFontFamily: root.panelFontFamily
+    }
+
+    Text {
+      anchors.right: parent.right
+      anchors.verticalCenter: parent.verticalCenter
+      text: root.rows.length + (root.rows.length === 1 ? " symbol" : " symbols")
+      color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.35)
+      font.family: root.panelFontFamily
+      font.pixelSize: Style.font.caption
+    }
   }
 }

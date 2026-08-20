@@ -1,400 +1,296 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
-import "../SymbolID.js" as SymbolID
-import "../Market.js" as Market
 
-// The watchlist editor.
-//
-// The file stays the source of truth — this writes to it, and an edit made in
-// a text editor shows up here without a restart. It exists because the one
-// thing a watchlist is made of, an ordered list of instruments, is the one
-// thing neither `omarchy bar set` nor a declarative settings schema can carry.
+// Settings, in Omarchy's own furniture: PanelSectionHeader introduces each
+// section, PanelSeparator divides them, ButtonGroup carries the exclusive
+// choices, Dropdown the pick-one-of-many. Watchlist membership is not here —
+// adding lives behind the header's search, removal in the quote detail —
+// because settings is for how the plugin behaves, not what it watches.
 Column {
   id: root
 
   required property var watchlist
-  required property var search
   required property color textColor
-  required property color riseColor
-  required property color fallColor
   required property color mutedColor
   required property string panelFontFamily
 
-  readonly property var symbols: watchlist ? watchlist.canonicalSymbols() : []
-  readonly property var barModes: ["icon", "pinned", "carousel"]
-  readonly property var barModeLabels: ({
-    icon: "Icon only",
-    pinned: "Pinned quote",
-    carousel: "Carousel"
-  })
+  // Which list name is being renamed inline, or "" when none is.
+  property string renamingList: ""
 
-  spacing: Style.space(12)
+  spacing: Style.space(10)
 
-  // The same badge the watchlist shows. Both Chinese boards read CN and both
-  // Korean boards read KR — an instrument must not carry one badge on the list
-  // and a different one on the screen that edits the list.
-  function marketLabelFor(key) {
-    var parsed = SymbolID.parse(key)
-    return parsed ? Market.displayLabel(parsed.market) : ""
+  // --- Bar ------------------------------------------------------------------
+
+  PanelSectionHeader {
+    text: "BAR"
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
   }
 
-  // --- Add ------------------------------------------------------------------
+  ButtonGroup {
+    width: parent.width
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+    fontSize: Style.font.caption
+    options: [
+      { value: "icon", label: "Icon" },
+      { value: "pinned", label: "Pinned quote" },
+      { value: "carousel", label: "Carousel" }
+    ]
+    value: root.watchlist.barDisplay
+    onChanged: function (mode) { root.watchlist.setValue("barDisplay", mode) }
+  }
+
+  // Only the pinned mode names a symbol; the other two have nothing to pick.
+  Dropdown {
+    width: parent.width
+    visible: root.watchlist.barDisplay === "pinned"
+    label: "Pinned symbol"
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+    options: root.watchlist.allSymbols
+    value: root.watchlist.pinnedSymbol
+    onChanged: function (symbol) { root.watchlist.setValue("pinnedSymbol", symbol) }
+  }
+
+  Dropdown {
+    width: parent.width
+    visible: root.watchlist.barDisplay === "carousel"
+    label: "Rotate every"
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+    options: [
+      { value: "3", label: "3 seconds" },
+      { value: "6", label: "6 seconds" },
+      { value: "10", label: "10 seconds" },
+      { value: "30", label: "30 seconds" }
+    ]
+    value: String(root.watchlist.carouselIntervalSeconds)
+    onChanged: function (seconds) { root.watchlist.setValue("carouselIntervalSeconds", Number(seconds)) }
+  }
+
+  PanelSeparator { foreground: root.textColor }
+
+  // --- Refresh --------------------------------------------------------------
+
+  PanelSectionHeader {
+    text: "REFRESH"
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+  }
+
+  ButtonGroup {
+    width: parent.width
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+    fontSize: Style.font.caption
+    // The floor is Yahoo's per-IP budget, not a preference; anything faster
+    // than the source can change is spent requests.
+    options: [
+      { value: "30", label: "30s" },
+      { value: "60", label: "60s" },
+      { value: "120", label: "2m" },
+      { value: "300", label: "5m" }
+    ]
+    value: String(root.watchlist.pollIntervalSeconds)
+    onChanged: function (seconds) { root.watchlist.setValue("pollIntervalSeconds", Number(seconds)) }
+  }
+
+  PanelSeparator { foreground: root.textColor }
+
+  // --- Lists ----------------------------------------------------------------
+
+  PanelSectionHeader {
+    text: "LISTS"
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+  }
 
   Column {
     width: parent.width
-    spacing: Style.space(6)
+    spacing: 0
 
-    Text {
-      text: "ADD SYMBOL"
-      color: root.mutedColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.caption
-    }
+    Repeater {
+      model: root.watchlist.listNames
 
-    TextField {
-      id: queryField
-      width: parent.width
-      placeholderText: "Search name or code — nvidia, 600519.SH, 7203.T"
-      onTextChanged: root.search.query = text
-      Keys.onEscapePressed: {
-        text = ""
-        root.search.clear()
-      }
-    }
+      Rectangle {
+        id: listRow
+        required property string modelData
+        required property int index
+        readonly property bool renaming: root.renamingList === modelData
+        readonly property int symbolCount: {
+          var config = root.watchlist.config
+          var i = config.lists.map(function (l) { return l.name }).indexOf(modelData)
+          return i >= 0 ? config.lists[i].symbols.length : 0
+        }
 
-    Text {
-      width: parent.width
-      visible: root.search.searching || root.search.message !== ""
-      text: root.search.searching ? "Searching…" : root.search.message
-      color: root.mutedColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.caption
-      wrapMode: Text.WordWrap
-    }
+        width: parent.width
+        implicitHeight: Style.space(30)
+        radius: 0
+        color: listHover.hovered
+          ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.06)
+          : (index % 2 === 1
+              ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.025)
+              : "transparent")
 
-    // Results are capped at five: this list sits above the watchlist it is
-    // about to change, and pushing that off screen to show a sixth candidate
-    // is the wrong trade.
-    Column {
-      width: parent.width
-      visible: root.search.results.length > 0
-      spacing: 0
+        HoverHandler { id: listHover }
 
-      Repeater {
-        model: root.search.results.slice(0, 5)
+        Row {
+          visible: !listRow.renaming
+          anchors.left: parent.left
+          anchors.leftMargin: Style.space(6)
+          anchors.right: listActions.left
+          anchors.rightMargin: Style.space(6)
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: Style.space(6)
 
-        Rectangle {
-          id: resultRow
-          required property var modelData
-          required property int index
-          readonly property bool alreadyAdded: root.watchlist.contains(modelData.key)
-
-          width: parent.width
-          implicitHeight: Style.space(32)
-          radius: 0
-          color: resultHover.hovered
-            ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.06)
-            : "transparent"
-
-          HoverHandler { id: resultHover }
-          TapHandler {
-            enabled: !resultRow.alreadyAdded
-            onTapped: {
-              root.watchlist.addSymbol(resultRow.modelData.key)
-              queryField.text = ""
-              root.search.clear()
-            }
-          }
-
-          Row {
-            anchors.left: parent.left
-            anchors.leftMargin: Style.space(6)
-            anchors.right: addedMark.left
-            anchors.rightMargin: Style.space(6)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(6)
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              text: resultRow.modelData.displayCode
-              color: root.textColor
-              font.family: root.panelFontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
-            }
-            MarketBadge {
-              anchors.verticalCenter: parent.verticalCenter
-              label: Market.displayLabel(resultRow.modelData.market)
-              textColor: root.textColor
-              panelFontFamily: root.panelFontFamily
-            }
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              width: Math.max(0, resultRow.width - Style.space(150))
-              text: resultRow.modelData.name
-                ? String(resultRow.modelData.name)
-                : "Add by code"
-              color: root.mutedColor
-              font.family: root.panelFontFamily
-              font.pixelSize: Style.font.caption
-              elide: Text.ElideRight
-            }
-          }
-
-          // A symbol already on the list says so rather than offering an add
-          // that would silently do nothing.
           Text {
-            id: addedMark
-            anchors.right: parent.right
-            anchors.rightMargin: Style.space(6)
             anchors.verticalCenter: parent.verticalCenter
-            text: resultRow.alreadyAdded ? "ON LIST" : "+"
-            color: resultRow.alreadyAdded ? root.mutedColor : root.textColor
+            text: listRow.modelData
+            color: root.textColor
+            font.family: root.panelFontFamily
+            font.pixelSize: Style.font.bodySmall
+            elide: Text.ElideRight
+          }
+          Text {
+            anchors.verticalCenter: parent.verticalCenter
+            text: listRow.symbolCount + (listRow.symbolCount === 1 ? " symbol" : " symbols")
+            color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.35)
             font.family: root.panelFontFamily
             font.pixelSize: Style.font.caption
           }
         }
+
+        TextField {
+          visible: listRow.renaming
+          anchors.left: parent.left
+          anchors.right: listActions.left
+          anchors.rightMargin: Style.space(6)
+          anchors.verticalCenter: parent.verticalCenter
+          foreground: root.textColor
+          text: listRow.modelData
+          onVisibleChanged: if (visible) { forceActiveFocus(); selectAll() }
+          onAccepted: {
+            root.watchlist.renameList(listRow.modelData, text)
+            root.renamingList = ""
+          }
+          Keys.onEscapePressed: root.renamingList = ""
+        }
+
+        Row {
+          id: listActions
+          anchors.right: parent.right
+          anchors.rightMargin: Style.space(4)
+          anchors.verticalCenter: parent.verticalCenter
+          spacing: 0
+          visible: !listRow.renaming
+
+          PanelActionButton {
+            iconText: "󰑕"
+            tooltipText: "Rename"
+            foreground: root.mutedColor
+            fontFamily: root.panelFontFamily
+            fontSize: Style.font.bodySmall
+            onClicked: root.renamingList = listRow.modelData
+          }
+
+          PanelActionButton {
+            // The last list is not removable; the button says so by dimming
+            // rather than by disappearing and leaving the rows misaligned.
+            enabled: root.watchlist.listNames.length > 1
+            opacity: enabled ? 1.0 : 0.3
+            iconText: "󰩺"
+            tooltipText: enabled ? "Delete list" : "The last list stays"
+            foreground: root.mutedColor
+            fontFamily: root.panelFontFamily
+            fontSize: Style.font.bodySmall
+            onClicked: root.watchlist.removeList(listRow.modelData)
+          }
+        }
       }
     }
   }
 
-  Rectangle {
-    width: parent.width
-    height: 1
-    color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.15)
-  }
+  PanelSeparator { foreground: root.textColor }
 
-  // --- Reorder and remove ---------------------------------------------------
+  // --- Sources --------------------------------------------------------------
+  //
+  // The frame the macOS app's multi-provider layer will fill in. One source is
+  // wired today; the rest are named so the shape of the panel does not change
+  // when they arrive — only the rows light up.
+
+  PanelSectionHeader {
+    text: "DATA SOURCES"
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+  }
 
   Column {
     width: parent.width
-    spacing: Style.space(6)
+    spacing: 0
 
-    Text {
-      text: "WATCHLIST — " + root.symbols.length + (root.symbols.length === 1 ? " SYMBOL" : " SYMBOLS")
-      color: root.mutedColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.caption
-    }
-
-    Column {
+    component SourceRow: Item {
+      id: sourceRow
+      required property string name
+      required property string detail
+      property bool wired: false
       width: parent.width
-      spacing: 0
+      implicitHeight: Style.space(32)
+      opacity: wired ? 1.0 : 0.45
 
-      Repeater {
-        model: root.symbols
+      Column {
+        anchors.left: parent.left
+        anchors.leftMargin: Style.space(6)
+        anchors.right: stateLabel.left
+        anchors.rightMargin: Style.space(8)
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Style.space(2)
 
-        Rectangle {
-          id: symbolRow
-          required property string modelData
-          required property int index
-
+        Text {
+          text: sourceRow.name
+          color: root.textColor
+          font.family: root.panelFontFamily
+          font.pixelSize: Style.font.bodySmall
+        }
+        Text {
           width: parent.width
-          implicitHeight: Style.space(30)
-          radius: 0
-          color: rowHover.hovered
-            ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.06)
-            : (index % 2 === 1
-                ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.025)
-                : "transparent")
-
-          HoverHandler { id: rowHover }
-
-          Row {
-            anchors.left: parent.left
-            anchors.leftMargin: Style.space(6)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(6)
-
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
-              text: SymbolID.displayCode(SymbolID.parse(symbolRow.modelData))
-              color: root.textColor
-              font.family: root.panelFontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: true
-            }
-            MarketBadge {
-              anchors.verticalCenter: parent.verticalCenter
-              label: root.marketLabelFor(symbolRow.modelData)
-              textColor: root.textColor
-              panelFontFamily: root.panelFontFamily
-            }
-          }
-
-          // Reordering is two buttons rather than a drag. A drag inside a
-          // popup that closes on outside clicks is a gesture that loses its
-          // own list halfway through.
-          Row {
-            anchors.right: parent.right
-            anchors.rightMargin: Style.space(6)
-            anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(10)
-
-            component RowAction: Text {
-              required property string glyph
-              required property bool enabledAction
-              signal triggered()
-              anchors.verticalCenter: parent.verticalCenter
-              text: glyph
-              color: enabledAction
-                ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.65)
-                : Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.20)
-              font.family: root.panelFontFamily
-              font.pixelSize: Style.font.bodySmall
-              TapHandler {
-                enabled: parent.enabledAction
-                onTapped: parent.triggered()
-              }
-            }
-
-            RowAction {
-              glyph: "↑"
-              enabledAction: symbolRow.index > 0
-              onTriggered: root.watchlist.moveSymbol(symbolRow.modelData, -1)
-            }
-            RowAction {
-              glyph: "↓"
-              enabledAction: symbolRow.index < root.symbols.length - 1
-              onTriggered: root.watchlist.moveSymbol(symbolRow.modelData, 1)
-            }
-            RowAction {
-              glyph: "✕"
-              enabledAction: true
-              onTriggered: root.watchlist.removeSymbol(symbolRow.modelData)
-            }
-          }
+          text: sourceRow.detail
+          color: root.mutedColor
+          font.family: root.panelFontFamily
+          font.pixelSize: Style.font.caption
+          elide: Text.ElideRight
         }
       }
-    }
-
-    Text {
-      width: parent.width
-      visible: root.symbols.length === 0
-      text: "Nothing on the list yet. Search above, or edit " + root.watchlist.configPath
-      color: root.mutedColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.caption
-      wrapMode: Text.WordWrap
-    }
-  }
-
-  Rectangle {
-    width: parent.width
-    height: 1
-    color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.15)
-  }
-
-  // --- Bar ------------------------------------------------------------------
-
-  Column {
-    width: parent.width
-    spacing: Style.space(6)
-
-    Text {
-      text: "BAR"
-      color: root.mutedColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.caption
-    }
-
-    Rectangle {
-      width: parent.width
-      implicitHeight: Style.space(26)
-      radius: 0
-      color: "transparent"
-      border.width: 1
-      border.color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.18)
-
-      Row {
-        anchors.fill: parent
-
-        Repeater {
-          model: root.barModes
-
-          Rectangle {
-            required property string modelData
-            required property int index
-            readonly property bool active: root.watchlist.barDisplay === modelData
-
-            width: parent.width / root.barModes.length
-            height: parent.height
-            radius: 0
-            color: active
-              ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.12)
-              : "transparent"
-
-            Rectangle {
-              visible: index > 0
-              anchors.left: parent.left
-              width: 1
-              height: parent.height
-              color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.18)
-            }
-
-            Text {
-              anchors.centerIn: parent
-              text: root.barModeLabels[parent.modelData]
-              color: root.textColor
-              font.family: root.panelFontFamily
-              font.pixelSize: Style.font.caption
-              font.bold: parent.active
-            }
-
-            TapHandler { onTapped: root.watchlist.setBarDisplay(parent.modelData) }
-          }
-        }
-      }
-    }
-
-    // Only the pinned mode names a symbol; the other two have nothing to pick.
-    Row {
-      width: parent.width
-      visible: root.watchlist.barDisplay === "pinned"
-      spacing: Style.space(6)
 
       Text {
+        id: stateLabel
+        anchors.right: parent.right
+        anchors.rightMargin: Style.space(6)
         anchors.verticalCenter: parent.verticalCenter
-        text: "Pinned"
+        text: sourceRow.wired ? "ACTIVE" : "PLANNED"
         color: root.mutedColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption
       }
+    }
 
-      Flow {
-        width: parent.width - Style.space(60)
-        spacing: Style.space(4)
-
-        Repeater {
-          model: root.symbols
-
-          Rectangle {
-            required property string modelData
-            readonly property bool active: root.watchlist.canonical(root.watchlist.pinnedSymbol) === modelData
-
-            implicitWidth: pinLabel.implicitWidth + Style.space(10)
-            implicitHeight: Style.space(18)
-            radius: 0
-            color: active
-              ? Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.14)
-              : "transparent"
-            border.width: 1
-            border.color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, active ? 0.35 : 0.15)
-
-            Text {
-              id: pinLabel
-              anchors.centerIn: parent
-              text: SymbolID.displayCode(SymbolID.parse(parent.modelData))
-              color: root.textColor
-              font.family: root.panelFontFamily
-              font.pixelSize: Style.font.caption
-            }
-
-            TapHandler { onTapped: root.watchlist.setPinnedSymbol(parent.modelData) }
-          }
-        }
-      }
+    SourceRow {
+      name: "Yahoo Finance"
+      detail: "US real time · HK/CN ~15 min · JP/KR ~20 min · metals"
+      wired: true
+    }
+    SourceRow {
+      name: "Binance"
+      detail: "Crypto pairs, live over WebSocket"
+    }
+    SourceRow {
+      name: "Longbridge"
+      detail: "Real-time HK / US / A-shares with your account"
+    }
+    SourceRow {
+      name: "Naver"
+      detail: "Korea real time and Korean-language search"
     }
   }
 

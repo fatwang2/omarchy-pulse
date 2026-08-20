@@ -4,15 +4,14 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "Model.js" as Model
-import "SymbolID.js" as SymbolID
 import "components"
 
 // Pulse for Omarchy.
 //
-// Glanceable market data in the bar: the watchlist you already keep, priced,
-// without leaving what you are working on. The bar itself stays discreet by
-// default — an icon — and can be turned into a pinned quote or a carousel for
-// people who would rather not open anything at all.
+// The panel follows the macOS popover's order: identity and tools in the
+// header, named lists as tabs, then the rows, with the feed's state as the
+// footer. Search-to-add hangs off the header's magnifier the way it does on
+// macOS; settings is for how the plugin behaves, not what it watches.
 Panel {
   id: root
   moduleName: "pulse.omarchy"
@@ -25,27 +24,27 @@ Panel {
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
   property bool settingsOpen: false
+  property bool addOpen: false
   property var marketState: Model.initialState()
-  readonly property var quoteRows: Model.rows(marketState)
+  readonly property var quoteRows: Model.rowsForSymbols(marketState, watchlist.activeSymbols)
   property double nowMs: Date.now()
 
   // The bar label follows the rows, so a carousel and a pinned quote read from
-  // the same prices the panel shows rather than fetching their own.
+  // the same prices the panel shows rather than fetching their own. They read
+  // across every list — the bar has no active tab.
   property int carouselIndex: 0
-  readonly property var pricedRows: quoteRows.filter(function (row) { return !!row.quote })
+  readonly property var pricedRows: Model.rowsForSymbols(marketState, watchlist.allSymbols)
+    .filter(function (row) { return !!row.quote })
   readonly property var pinnedRow: {
     if (watchlist.barDisplay === "carousel") {
       return pricedRows.length > 0 ? pricedRows[carouselIndex % pricedRows.length] : null
     }
     if (watchlist.barDisplay !== "pinned") return null
-    var wanted = SymbolID.parse(watchlist.pinnedSymbol)
-    var key = wanted ? SymbolID.toString(wanted) : ""
     for (var i = 0; i < pricedRows.length; i++) {
-      if (pricedRows[i].key === key) return pricedRows[i]
+      if (pricedRows[i].key === watchlist.pinnedSymbol) return pricedRows[i]
     }
-    // A pinned symbol that is not on the watchlist falls back to the first
-    // priced row rather than showing nothing: an empty bar slot reads as a
-    // broken widget, not as a configuration mistake.
+    // A pinned symbol with no quote yet falls back to the first priced row
+    // rather than showing nothing: an empty bar slot reads as a broken widget.
     return pricedRows.length > 0 ? pricedRows[0] : null
   }
   readonly property bool showsLabel: watchlist.barDisplay !== "icon" && pinnedRow !== null
@@ -54,35 +53,55 @@ Panel {
        + "  " + Model.formatPercent(pinnedRow.changePercent))
     : ""
 
+  function closeSubviews() {
+    root.settingsOpen = false
+    root.addOpen = false
+    addRow.clear()
+    watchlistView.detailOpen = false
+  }
+
+  function openAdd() {
+    root.settingsOpen = false
+    watchlistView.detailOpen = false
+    root.addOpen = true
+    addRow.focusInput()
+  }
+
   ThemePalette {
     id: palette
     fallbackRise: Color.accent
     fallbackFall: root.urgent
   }
 
-  Watchlist {
-    id: watchlist
-    onChanged: root.marketState = Model.applySymbols(root.marketState, watchlist.symbols)
-  }
+  Watchlist { id: watchlist }
 
   SymbolSearch { id: symbolSearch }
 
   // The panel is the reason to fetch, but not the only one: a pinned or
-  // carousel bar label needs prices whether or not anything is open.
+  // carousel bar label needs prices whether or not anything is open. The feed
+  // subscribes to every list, so switching tabs shows prices instead of an
+  // empty list that has to refetch.
   QuoteFeed {
     id: feed
     active: root.opened || watchlist.barDisplay !== "icon"
-    symbols: root.marketState.symbols
+    symbols: watchlist.allSymbols
     pollIntervalSeconds: watchlist.pollIntervalSeconds
     onQuoteReceived: function (quote) { root.marketState = Model.applyQuote(root.marketState, quote) }
     onQuoteFailed: function (symbol, message) { root.marketState = Model.applyError(root.marketState, symbol, message) }
   }
 
+  // The reducer state's membership follows the union of all lists.
+  Connections {
+    target: watchlist
+    function onConfigChanged() {
+      root.marketState = Model.applySymbols(root.marketState, watchlist.allSymbols)
+    }
+  }
+
   // Drives the stale marker. Thirty seconds is finer than the five-minute
   // staleness threshold it feeds, so a row crosses over within one tick of
-  // actually being stale. The clock only runs while the panel is open, so it
-  // is also read at open time — the shell can have been running for days, and
-  // the first tick would otherwise be half a minute late.
+  // actually being stale. Read again at open time — the shell can have been
+  // running for days, and the first tick would otherwise be half a minute late.
   Timer {
     interval: 30000
     running: root.opened
@@ -90,7 +109,10 @@ Panel {
     onTriggered: root.nowMs = Date.now()
   }
 
-  onOpenedChanged: if (root.opened) root.nowMs = Date.now()
+  onOpenedChanged: {
+    if (root.opened) root.nowMs = Date.now()
+    else root.closeSubviews()
+  }
 
   Timer {
     interval: Math.max(2, watchlist.carouselIntervalSeconds) * 1000
@@ -107,13 +129,12 @@ Panel {
     function refresh(): string { feed.refresh(); return "ok" }
     function settings(): string {
       root.settingsOpen = !root.settingsOpen
-      if (!root.settingsOpen) symbolSearch.clear()
       return root.settingsOpen ? "open" : "closed"
     }
-    // Drives the settings search without synthetic keystrokes, which is how it
-    // gets exercised from a script or a test run.
+    // Drives the add search without synthetic keystrokes, which is how it gets
+    // exercised from a script or a test run.
     function find(query: string): string {
-      root.settingsOpen = true
+      root.openAdd()
       symbolSearch.query = query
       return "searching"
     }
@@ -133,14 +154,22 @@ Panel {
     function remove(symbol: string): string {
       return watchlist.removeSymbol(symbol) ? "removed" : "not on the list"
     }
+    function lists(): string { return JSON.stringify(watchlist.listNames) }
+    function selectList(name: string): string {
+      return watchlist.selectList(name) ? "selected" : "no such list"
+    }
     function status(): string {
       return JSON.stringify({
-        symbols: root.marketState.symbols,
+        lists: watchlist.listNames,
+        activeList: watchlist.activeList,
+        symbols: watchlist.activeSymbols,
+        allSymbols: watchlist.allSymbols,
         quoted: Object.keys(root.marketState.quotes).length,
         errors: root.marketState.errors,
         feed: feed.status,
         barDisplay: watchlist.barDisplay,
         settingsOpen: root.settingsOpen,
+        addOpen: root.addOpen,
         config: watchlist.configPath,
         configError: watchlist.error
       })
@@ -198,30 +227,36 @@ Panel {
     open: root.opened
     centerOnBar: false
     focusTarget: keyCatcher
-    contentWidth: panel.fittedContentWidth(Style.space(360))
-    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(720))
+    contentWidth: panel.fittedContentWidth(Style.space(390))
+    contentHeight: panel.fittedContentHeight(contentColumn.implicitHeight, Style.space(760))
 
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      // While the filter holds focus every key belongs to it, including the
+      // While a text editor holds focus every key belongs to it, including the
       // panel's own single-letter shortcuts.
-      blocked: watchlistView.searching || root.settingsOpen
+      blocked: root.addOpen || root.settingsOpen
       onMoveRequested: function (dx, dy) { if (dy !== 0) watchlistView.moveSelection(dy) }
       onActivateRequested: {
-        if (watchlistView.visibleRows.length > 0) watchlistView.detailOpen = true
+        if (watchlistView.rows.length > 0) watchlistView.detailOpen = true
       }
       onCloseRequested: {
-        if (root.settingsOpen) { root.settingsOpen = false; symbolSearch.clear() }
-        else if (watchlistView.filterText !== "") watchlistView.clearSearch()
+        if (root.addOpen) { root.addOpen = false; addRow.clear() }
+        else if (root.settingsOpen) root.settingsOpen = false
         else if (watchlistView.detailOpen) watchlistView.detailOpen = false
         else root.close()
       }
+      onTabRequested: function (direction) { root.switchPanel(direction) }
       onTextKey: function (text) {
         var key = String(text || "").toLowerCase()
-        if (key === "/" || key === "f") watchlistView.focusSearch()
+        if (key === "/" || key === "f" || key === "a") root.openAdd()
         else if (key === "r") feed.refresh()
-        else if (key === "s") root.settingsOpen = true
+        else if (key === "s") { watchlistView.detailOpen = false; root.addOpen = false; root.settingsOpen = true }
+        else if (key >= "1" && key <= "9") {
+          var names = watchlist.listNames
+          var index = Number(key) - 1
+          if (index < names.length) watchlist.selectList(names[index])
+        }
       }
 
       Column {
@@ -231,6 +266,7 @@ Panel {
         anchors.top: parent.top
         spacing: Style.space(10)
 
+        // --- Header: identity left, tools right, like the macOS popover. ---
         Item {
           id: header
           width: parent.width
@@ -257,43 +293,82 @@ Panel {
             }
           }
 
-          // Back out of a sub-view without reaching for Escape, and the gear
-          // that leads into the only sub-view you cannot reach from a row.
+          // A Row is a positioner: its children may not anchor vertically, so
+          // each child centres itself by filling the row's height instead.
           Row {
+            id: headerTools
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.space(10)
+            height: Style.space(22)
+            spacing: Style.space(2)
 
             Text {
-              anchors.verticalCenter: parent.verticalCenter
               visible: watchlistView.detailOpen || root.settingsOpen
+              height: parent.height
+              verticalAlignment: Text.AlignVCenter
+              rightPadding: Style.space(8)
               text: "← Back"
               color: root.muted
               font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               TapHandler {
                 onTapped: {
-                  if (root.settingsOpen) { root.settingsOpen = false; symbolSearch.clear() }
+                  if (root.settingsOpen) root.settingsOpen = false
                   else watchlistView.detailOpen = false
                 }
               }
             }
 
-            Text {
-              anchors.verticalCenter: parent.verticalCenter
+            PanelActionButton {
+              visible: !root.settingsOpen && !watchlistView.detailOpen
+              iconText: "󰍉"
+              tooltipText: "Add symbol (/)"
+              foreground: root.addOpen ? root.foreground : root.muted
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+              onClicked: root.addOpen ? (function () { root.addOpen = false; addRow.clear() })() : root.openAdd()
+            }
+
+            PanelActionButton {
               visible: !root.settingsOpen
-              text: "⚙"
-              color: root.muted
-              font.family: root.fontFamily
-              font.pixelSize: Style.font.bodySmall
-              TapHandler {
-                onTapped: {
-                  watchlistView.detailOpen = false
-                  root.settingsOpen = true
-                }
+              iconText: "󰒓"
+              tooltipText: "Settings (s)"
+              foreground: root.muted
+              fontFamily: root.fontFamily
+              fontSize: Style.font.bodySmall
+              onClicked: {
+                watchlistView.detailOpen = false
+                root.addOpen = false
+                root.settingsOpen = true
               }
             }
           }
+        }
+
+        // --- Add flow, folded away until the magnifier summons it. ---
+        AddSymbolRow {
+          id: addRow
+          visible: root.addOpen && !root.settingsOpen && !watchlistView.detailOpen
+          width: parent.width
+          watchlist: watchlist
+          search: symbolSearch
+          textColor: root.foreground
+          mutedColor: root.muted
+          panelFontFamily: root.fontFamily
+          onDismissed: root.addOpen = false
+        }
+
+        // --- Named lists. ---
+        ListTabs {
+          visible: !root.settingsOpen && !watchlistView.detailOpen
+          width: parent.width
+          names: watchlist.listNames
+          activeName: watchlist.activeList
+          textColor: root.foreground
+          accentColor: Color.accent
+          panelFontFamily: root.fontFamily
+          onSelected: function (name) { watchlist.selectList(name) }
+          onAddRequested: watchlist.addList("List " + (watchlist.listNames.length + 1))
         }
 
         WatchlistView {
@@ -307,20 +382,15 @@ Panel {
           textColor: root.foreground
           riseColor: palette.rise
           fallColor: palette.fall
-          accentColor: Color.accent
           mutedColor: root.muted
           panelFontFamily: root.fontFamily
-          onRefreshRequested: feed.refresh()
         }
 
         SettingsView {
           visible: root.settingsOpen
           width: parent.width
           watchlist: watchlist
-          search: symbolSearch
           textColor: root.foreground
-          riseColor: palette.rise
-          fallColor: palette.fall
           mutedColor: root.muted
           panelFontFamily: root.fontFamily
         }
@@ -335,7 +405,21 @@ Panel {
           fallColor: palette.fall
           mutedColor: root.muted
           panelFontFamily: root.fontFamily
+          canMoveUp: watchlistView.selectedIndex > 0
+          canMoveDown: watchlistView.selectedIndex < root.quoteRows.length - 1
           onDismissed: watchlistView.detailOpen = false
+          onMoveRequested: function (delta) {
+            if (watchlistView.selectedRow) {
+              watchlist.moveSymbol(watchlistView.selectedRow.key, delta)
+              watchlistView.selectedIndex = Math.max(0, Math.min(root.quoteRows.length - 1, watchlistView.selectedIndex + delta))
+            }
+          }
+          onRemoveRequested: {
+            if (watchlistView.selectedRow) {
+              watchlist.removeSymbol(watchlistView.selectedRow.key)
+              watchlistView.detailOpen = false
+            }
+          }
         }
       }
     }
