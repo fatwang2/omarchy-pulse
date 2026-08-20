@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "symbols": [
+    "AAPL",
+    "NVDA",
+    "TSM",
+    "^GSPC",
+    "00700.HK",
+    "^HSI",
+    "600519.SH",
+    "000001.SH",
+    "7203.T",
+    "005930.KS"
+  ],
+  "pollIntervalSeconds": 60,
+  "barDisplay": "icon",
+  "pinnedSymbol": "NVDA",
+  "carouselIntervalSeconds": 6
+}
