@@ -41,6 +41,7 @@ QtObject {
 
     var xhr = new XMLHttpRequest()
     xhr.open("GET", spec.url)
+    xhr.timeout = 8000
     xhr.setRequestHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) Pulse/0.1 (+https://www.pulseticker.app)")
     xhr.setRequestHeader("Accept", "application/json")
     xhr.onreadystatechange = function () {

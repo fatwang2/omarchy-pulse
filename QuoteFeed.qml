@@ -88,6 +88,10 @@ QtObject {
     root.inFlight = root.inFlight + 1
     var xhr = new XMLHttpRequest()
     xhr.open("GET", spec.url)
+    // The queue is serial: one request that never completes freezes every row
+    // behind it, with no error to show why. A network that has stopped
+    // answering must become a failed row, not a stuck panel.
+    xhr.timeout = 10000
     // Yahoo serves an empty body to clients it does not recognise as browsers.
     xhr.setRequestHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) Pulse/0.1 (+https://www.pulseticker.app)")
     xhr.setRequestHeader("Accept", "application/json")
