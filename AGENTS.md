@@ -67,20 +67,22 @@ only the tiebreak inside a block. The one rule that keeps this honest: any
 control that edits the sequence must only ever be shown against the raw
 sequence. That is what the reordering pass is — it bypasses the schedule so
 the arrows edit the order the eye sees. Never surface a move control against
-the schedule view. Membership and order are list operations and
-live in the hover-revealed row and tab actions; the quote detail describes
-one instrument and holds no list controls.
+the schedule view. Membership and order are list operations and live in edit mode's row
+controls and the tab strip; the quote detail describes one instrument and
+holds no list controls.
 
 ## Interactions are the shell's, functions are the app's
 
 When porting a macOS interaction, keep what it does and re-express how.
-Context menus and drag-to-reorder are macOS idiom; the shell's idiom is
-inline actions revealed at the row's edge on hover (the network panel's
-"forget" pattern), inline text fields for naming, and a double click to
-edit a label in place. QQC.Popup context menus render poorly against the
-shell's panels — tried and removed. A pencil-toggled edit mode was also
-tried: it worked, but it made the panel the only surface in the shell with
-a mode, and it read as foreign.
+List editing is a mode, entered from the header's pencil: rows grow move,
+pin and remove controls at their right edge, the tabs disable, and the
+schedule order is bypassed so the arrows edit the sequence the eye sees.
+Nothing is revealed on hover — hover-revealed controls were tried twice
+(beside the chart, then over the price) and rejected both times; reading
+the list and editing the list are different postures, entered deliberately.
+QQC.Popup context menus were also tried and render poorly against the
+shell's panels. Inline text fields for naming and a double click to edit a
+label in place are the shell idioms that stayed.
 
 If a grouped presentation is ever wanted, it must be a presentation of an
 unchanged order, and the move buttons must disappear with it.

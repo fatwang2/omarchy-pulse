@@ -109,14 +109,10 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
   into blocks and the session trading now leads — Asia through the Beijing
   day (HK, China A, Japan, Korea, US), the US after 17:00 Beijing — with
   metals and crypto, which never close, always behind the session-bound
-  blocks. Pinning a row (hover → pin) raises it to the top of its own
+  blocks. Pinning a row (edit mode → pin) raises it to the top of its own
   market block, not the top of the list. Your saved order is never touched;
   it stays the tiebreak inside every block, and **Settings → Order** turns
   the schedule off entirely.
-- "Adjust order" (hover → 󰒺) opens the reordering pass: the schedule is
-  bypassed so the rows show the exact sequence the arrows edit, and the
-  tabs, search and settings sit disabled until Esc or ← ends it — the macOS
-  isReordering state, with arrows in place of drag.
 - The identity column is capped so the session line gets the width. An elided
   name shows in full after hovering the row for a moment.
 - Each priced row carries the current session's intraday line. It comes from
@@ -131,12 +127,15 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 - Press `/` (or `f`, `a`) to add a symbol, `r` to refresh, `s` for settings,
   `1`–`9` to switch lists, `↑`/`↓` to move, `Enter` for the
   quote detail, `Esc` to back out.
-- Lists keep the macOS group bar's functions in the shell's own idiom: "+"
-  becomes an inline name field so a list is born with its name, a double
-  click renames a tab in place, and hovering a tab reveals its delete.
-  Hovering a row reveals pin, adjust-order and remove at its edge — the
-  same actions macOS keeps in a context menu, surfaced the way the network
-  panel reveals "forget".
+- Lists keep the macOS group bar's functions: "+" becomes an inline name
+  field so a list is born with its name, a double click renames a tab in
+  place, and hovering a tab reveals its delete.
+- Editing the list is a mode, entered from the header's pencil (or `e`).
+  While it is on, every row grows move-up, move-down, pin and remove at its
+  right edge, the tabs sit disabled, and the rows show your saved order —
+  the schedule is bypassed so the arrows edit exactly the sequence you see.
+  Esc, the pencil, or back ends it. Nothing appears on hover: reading the
+  list and editing the list are different postures.
 - The quote detail carries the chart at reading size: the session line
   (`1D`, from the same response as the quote) and daily / weekly / monthly
   candlesticks with a volume strip (`D` / `W` / `M`, fetched on first look

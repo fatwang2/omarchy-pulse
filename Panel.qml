@@ -26,11 +26,16 @@ Panel {
 
   property bool settingsOpen: false
   property bool addOpen: false
+  // Edit mode, entered from the header. While on, the schedule order is
+  // bypassed so the arrows edit exactly the sequence the rows show — the one
+  // rule that makes a move control honest — and the rows grow their reorder,
+  // pin and remove controls.
+  property bool editMode: false
   property var marketState: Model.initialState()
   // What the rows show: the schedule-aware order — market blocks led by the
   // session trading now, pins atop their own block — unless the user turned
   // the schedule off, in which case the saved sequence stands.
-  readonly property var displayedSymbols: watchlist.prioritizeOpenMarkets
+  readonly property var displayedSymbols: (watchlist.prioritizeOpenMarkets && !root.editMode)
     ? SessionOrder.orderedSymbols(watchlist.activeSymbols, watchlist.activePinnedSymbols, root.nowMs)
     : watchlist.activeSymbols
   readonly property var quoteRows: Model.rowsForSymbols(marketState, displayedSymbols)
@@ -63,6 +68,7 @@ Panel {
   function closeSubviews() {
     root.settingsOpen = false
     root.addOpen = false
+    root.editMode = false
     addRow.clear()
     watchlistView.detailOpen = false
   }
@@ -181,6 +187,10 @@ Panel {
       detailView.chartPeriod = period
       return detailView.chartPeriod
     }
+    function edit(): string {
+      root.editMode = !root.editMode
+      return root.editMode ? "editing" : "done"
+    }
     function lists(): string { return JSON.stringify(watchlist.listNames) }
     function selectList(name: string): string {
       return watchlist.selectList(name) ? "selected" : "no such list"
@@ -268,7 +278,8 @@ Panel {
         if (watchlistView.rows.length > 0) watchlistView.detailOpen = true
       }
       onCloseRequested: {
-        if (root.addOpen) { root.addOpen = false; addRow.clear() }
+        if (root.editMode) root.editMode = false
+        else if (root.addOpen) { root.addOpen = false; addRow.clear() }
         else if (root.settingsOpen) root.settingsOpen = false
         else if (watchlistView.detailOpen) watchlistView.detailOpen = false
         else root.close()
@@ -276,9 +287,11 @@ Panel {
       onTabRequested: function (direction) { root.switchPanel(direction) }
       onTextKey: function (text) {
         var key = String(text || "").toLowerCase()
+        if (root.editMode) { if (key === "e") root.editMode = false; return }
         if (key === "/" || key === "f" || key === "a") root.openAdd()
         else if (key === "r") feed.refresh()
         else if (key === "s") { watchlistView.detailOpen = false; root.addOpen = false; root.settingsOpen = true }
+        else if (key === "e" && !watchlistView.detailOpen) { root.addOpen = false; addRow.clear(); root.editMode = true }
         else if (key >= "1" && key <= "9") {
           var names = watchlist.listNames
           var index = Number(key) - 1
@@ -308,7 +321,7 @@ Panel {
             height: Style.space(22)
             spacing: Style.space(7)
 
-            readonly property bool inSubview: watchlistView.detailOpen || root.settingsOpen
+            readonly property bool inSubview: watchlistView.detailOpen || root.settingsOpen || root.editMode
 
             PanelActionButton {
               visible: parent.inSubview
@@ -317,7 +330,8 @@ Panel {
               foreground: root.muted
               fontFamily: root.fontFamily
               onClicked: {
-                if (root.settingsOpen) root.settingsOpen = false
+                if (root.editMode) root.editMode = false
+                else if (root.settingsOpen) root.settingsOpen = false
                 else watchlistView.detailOpen = false
               }
             }
@@ -332,9 +346,11 @@ Panel {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: parent.inSubview
-                ? (root.settingsOpen
-                    ? "Settings"
-                    : (watchlistView.selectedRow ? watchlistView.selectedRow.displayCode : ""))
+                ? (root.editMode
+                    ? "Edit " + watchlist.activeList
+                    : (root.settingsOpen
+                        ? "Settings"
+                        : (watchlistView.selectedRow ? watchlistView.selectedRow.displayCode : "")))
                 : "Pulse"
               color: root.foreground
               font.family: root.fontFamily
@@ -351,7 +367,7 @@ Panel {
             spacing: Style.space(2)
 
             PanelActionButton {
-              visible: !root.settingsOpen && !watchlistView.detailOpen
+              visible: !root.settingsOpen && !watchlistView.detailOpen && !root.editMode
               iconText: "󰍉"
               tooltipText: "Add symbol (/)"
               foreground: root.addOpen ? root.foreground : root.muted
@@ -360,7 +376,20 @@ Panel {
             }
 
             PanelActionButton {
-              visible: !root.settingsOpen
+              visible: !root.settingsOpen && !watchlistView.detailOpen && !root.editMode
+              iconText: "󰏫"
+              tooltipText: "Edit list (e)"
+              foreground: root.muted
+              fontFamily: root.fontFamily
+              onClicked: {
+                root.addOpen = false
+                addRow.clear()
+                root.editMode = true
+              }
+            }
+
+            PanelActionButton {
+              visible: !root.settingsOpen && !root.editMode
               iconText: "󰒓"
               tooltipText: "Settings (s)"
               foreground: root.muted
@@ -391,6 +420,8 @@ Panel {
         ListTabs {
           id: listTabs
           visible: !root.settingsOpen && !watchlistView.detailOpen
+          enabled: !root.editMode
+          opacity: root.editMode ? 0.45 : 1
           width: parent.width
           names: watchlist.listNames
           activeName: watchlist.activeList
@@ -409,8 +440,10 @@ Panel {
           width: parent.width
           listName: watchlist.activeList
           pinnedKeys: watchlist.activePinnedSymbols
+          editMode: root.editMode
           onRowRemoveRequested: function (key) { watchlist.removeSymbol(key) }
           onRowPinRequested: function (key) { watchlist.togglePin(key) }
+          onRowMoveRequested: function (key, delta) { watchlist.moveSymbol(key, delta) }
           rows: root.quoteRows
           status: feed.status
           message: watchlist.error

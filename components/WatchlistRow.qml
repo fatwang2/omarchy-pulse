@@ -24,11 +24,19 @@ Rectangle {
   property bool striped: false
   property double nowMs: 0
   property bool pinned: false
+  // Edit mode is the only surface with controls: reorder, pin and remove
+  // appear at the row's edge while it is on, and nothing appears on hover —
+  // reading the list and editing the list are different postures, entered
+  // deliberately from the header.
+  property bool editMode: false
+  property bool canMoveUp: false
+  property bool canMoveDown: false
   // Named so the remove tooltip can say what it removes from — "Remove from
   // Watching" is a different promise than "Remove".
   property string listName: ""
 
   signal activated()
+  signal moveRequested(int delta)
   signal removeRequested()
   signal pinRequested()
 
@@ -57,7 +65,10 @@ Rectangle {
         : "transparent"
 
   HoverHandler { id: hover }
-  TapHandler { onTapped: root.activated() }
+  TapHandler {
+    enabled: !root.editMode
+    onTapped: root.activated()
+  }
 
 
 
@@ -139,7 +150,7 @@ Rectangle {
     id: chart
     anchors.left: identity.right
     anchors.leftMargin: Style.space(10)
-    anchors.right: figures.left
+    anchors.right: root.editMode ? editActions.left : figures.left
     anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     height: Style.space(24)
@@ -149,26 +160,39 @@ Rectangle {
     guideColor: root.textColor
   }
 
-  // List edits, revealed by hover at the row's right edge — where the
-  // network panel reveals "forget". They take the figures' place while the
-  // pointer is on the row: pointing at a row is the operating posture,
-  // reading its price is the resting one, and the two never happen at once.
-  // The chart is the row's core reading and never moves or shrinks for a
-  // control. Manual reordering is deliberately absent: the schedule orders
-  // the rows, and a move control shown against a schedule-ordered view
-  // would edit an order the eye cannot see.
+  // The edit-mode controls, in the figures' place at the row's right edge.
+  // Move sits here legally because edit mode bypasses the schedule order:
+  // the arrows edit exactly the sequence the rows are showing.
   Row {
-    id: hoverActions
-    visible: hover.hovered
+    id: editActions
+    visible: root.editMode
     anchors.right: parent.right
     anchors.rightMargin: Style.space(4)
     anchors.verticalCenter: parent.verticalCenter
     spacing: 0
 
     PanelActionButton {
+      enabled: root.canMoveUp
+      opacity: enabled ? 1.0 : 0.3
+      iconText: "󰜷"
+      tooltipText: "Move up"
+      foreground: root.mutedColor
+      fontFamily: root.panelFontFamily
+      onClicked: root.moveRequested(-1)
+    }
+    PanelActionButton {
+      enabled: root.canMoveDown
+      opacity: enabled ? 1.0 : 0.3
+      iconText: "󰜮"
+      tooltipText: "Move down"
+      foreground: root.mutedColor
+      fontFamily: root.panelFontFamily
+      onClicked: root.moveRequested(1)
+    }
+    PanelActionButton {
       iconText: root.pinned ? "󰤰" : "󰐃"
       tooltipText: root.pinned ? "Unpin" : "Pin to top of its market"
-      foreground: root.mutedColor
+      foreground: root.pinned ? root.textColor : root.mutedColor
       fontFamily: root.panelFontFamily
       onClicked: root.pinRequested()
     }
@@ -183,7 +207,7 @@ Rectangle {
 
   Column {
     id: figures
-    opacity: hover.hovered ? 0 : 1
+    visible: !root.editMode
     anchors.right: parent.right
     anchors.rightMargin: Style.space(9)
     anchors.verticalCenter: parent.verticalCenter

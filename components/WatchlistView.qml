@@ -25,6 +25,7 @@ Column {
   property bool detailOpen: false
   property string listName: ""
   property var pinnedKeys: []
+  property bool editMode: false
 
   readonly property var selectedRow: (selectedIndex >= 0 && selectedIndex < rows.length)
     ? rows[selectedIndex]
@@ -47,6 +48,7 @@ Column {
 
   signal rowRemoveRequested(string key)
   signal rowPinRequested(string key)
+  signal rowMoveRequested(string key, int delta)
 
   spacing: Style.space(8)
 
@@ -82,17 +84,22 @@ Column {
       nowMs: root.nowMs
       listName: root.listName
       pinned: root.pinnedKeys.indexOf(modelData.key) >= 0
+      editMode: root.editMode
+      canMoveUp: index > 0
+      canMoveDown: index < root.rows.length - 1
       textColor: root.textColor
       riseColor: root.riseColor
       fallColor: root.fallColor
       mutedColor: root.mutedColor
       panelFontFamily: root.panelFontFamily
       onActivated: {
+        if (root.editMode) return
         root.selectedIndex = index
         root.detailOpen = true
       }
       onRemoveRequested: root.rowRemoveRequested(modelData.key)
       onPinRequested: root.rowPinRequested(modelData.key)
+      onMoveRequested: function (delta) { root.rowMoveRequested(modelData.key, delta) }
     }
   }
 
