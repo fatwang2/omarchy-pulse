@@ -33,8 +33,16 @@ Either way the first install seeds a starter watchlist at
 
 ## The watchlist
 
-Omarchy configures through files, so the watchlist is a file. Edits land
-without restarting the shell — save it and the rows change.
+Two editors, one file. Press `s` or click the gear to add symbols by search,
+reorder them, and pick how the bar reads; or open
+`~/.config/omarchy/pulse/watchlist.json` in any text editor. Edits from either
+side land without restarting the shell.
+
+The file is the source of truth, because the settings panel Omarchy's manifest
+schema is designed for does not exist yet — `barWidget.schema` is registered
+into the widget registry and read by nothing in 4.0.0. When it ships, the
+scalar options can move into it; the ordered list of instruments cannot, which
+is why this editor exists at all.
 
 ```json
 {
@@ -91,8 +99,23 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 - `STALE` means a price has stopped arriving **while its market is open**, past
   the source's own delay. A closed market's last print is the close — final,
   not stale — and is never marked.
-- Press `/` or `f` to filter, `r` to refresh, `↑`/`↓` to move, `Enter` for the
-  quote detail, `Esc` to back out.
+- Press `/` or `f` to filter, `r` to refresh, `s` for settings, `↑`/`↓` to
+  move, `Enter` for the quote detail, `Esc` to back out.
+
+## Adding symbols
+
+Search matches names and tickers through Yahoo's index. A code that names its
+venue — `600519.SH`, `7203.T`, `00700.HK`, `^GSPC` — is resolved locally and
+offered whether or not the index knows it, which matters twice: Yahoo spells
+Shanghai `.SS` rather than `.SH`, and it answers HTTP 400 to Chinese, Japanese
+and Korean queries outright. `茅台` finds nothing there, but `600519.SH` works.
+
+A bare US ticker is left to the index on purpose: `nvidia` is a valid
+ten-character US code as far as the symbol layer is concerned, and offering it
+would put a row on the list that can never quote.
+
+Venues Pulse does not model are dropped rather than guessed at, so a Frankfurt
+or London listing never joins the watchlist under a US badge.
 
 ## Data
 
@@ -127,7 +150,16 @@ wrong instrument.
 omarchy-shell pulse.omarchy toggle
 omarchy-shell pulse.omarchy refresh
 omarchy-shell pulse.omarchy status   # symbols, quote count, per-row errors, feed state
+
+omarchy-shell pulse.omarchy settings          # toggle the settings view
+omarchy-shell pulse.omarchy add 7203.T        # -> added | rejected
+omarchy-shell pulse.omarchy remove TSM        # -> removed | not on the list
+omarchy-shell pulse.omarchy find nvidia       # run the settings search
+omarchy-shell pulse.omarchy results           # what that search returned
 ```
+
+`add` and `remove` write the same file the settings view does, so they are also
+how a script keeps a watchlist in sync with something else.
 
 ## Development
 

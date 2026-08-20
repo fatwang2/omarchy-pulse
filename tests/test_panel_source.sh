@@ -47,7 +47,16 @@ if ! grep -q 'changePercent < 0 ? fallColor : textColor' components/WatchlistRow
   fail "components/WatchlistRow.qml no longer gives a flat row the neutral foreground"
 fi
 
-# 4. The manifest id and the install path agree; a mismatch installs a plugin
+# 4. A market badge is always the display label, never the raw market code.
+#
+#    `sh` and `sz` both read CN, `kr` and `kq` both read KR. Uppercasing the
+#    market instead is the easy mistake, and it puts one instrument under two
+#    different badges on two screens of the same panel.
+if grep -rn '\.market\.toUpperCase()' --include='*.qml' .; then
+  fail "a QML file badges a raw market code instead of Market.displayLabel()"
+fi
+
+# 5. The manifest id and the install path agree; a mismatch installs a plugin
 #    the shell will never load.
 manifest_id=$(grep -oP '"id"\s*:\s*"\K[^"]+' manifest.json)
 install_id=$(grep -oP '^plugin_id="\K[^"]+' install.sh)

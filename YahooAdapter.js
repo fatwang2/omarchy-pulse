@@ -70,6 +70,56 @@ function wireSymbol(symbol) {
   return suffix ? code + suffix : null
 }
 
+// Yahoo's crypto notation is BASE-QUOTE against a small set of settlement
+// assets. Testing the quote side is what separates `BTC-USD` from `BRK-B`.
+var CRYPTO_QUOTE_ASSETS = ["USD", "USDT", "USDC", "BTC", "ETH", "EUR", "GBP", "JPY", "CAD", "AUD", "CHF"]
+
+function looksLikeCryptoPair(raw) {
+  var parts = String(raw || "").split("-")
+  if (parts.length !== 2) return false
+  return CRYPTO_QUOTE_ASSETS.indexOf(parts[1]) >= 0
+}
+
+// The reverse of `wireSymbol`: what Yahoo calls a thing, turned back into an
+// identity. Search returns wire symbols, so nothing from search can enter the
+// watchlist without passing through here first.
+function symbolFromWire(raw) {
+  var upper = String(raw || "").replace(/^\s+|\s+$/g, "").toUpperCase()
+  if (!upper) return null
+
+  for (var id in INDEX_WIRE) {
+    if (Object.prototype.hasOwnProperty.call(INDEX_WIRE, id) && INDEX_WIRE[id] === upper) {
+      return SymbolID.create(SymbolID.INDEXES[id].market, SymbolID.INDEXES[id].code)
+    }
+  }
+
+  // Metals are checked before the `=` rejection below: their futures notation
+  // is the one Yahoo symbol shape with an `=` that Pulse understands.
+  var metal = SymbolID.metalIDFor(upper)
+  if (metal) return SymbolID.create(SymbolID.METALS[metal].market, SymbolID.METALS[metal].code)
+
+  var suffixes = [[".HK", "hk", 3], [".SS", "sh", 3], [".SZ", "sz", 3],
+                  [".T", "jp", 2], [".KS", "kr", 3], [".KQ", "kq", 3]]
+  for (var i = 0; i < suffixes.length; i++) {
+    var suffix = suffixes[i]
+    if (upper.length > suffix[2] && upper.slice(-suffix[2]) === suffix[0]) {
+      return SymbolID.create(suffix[1], upper.slice(0, upper.length - suffix[2]))
+    }
+  }
+
+  // `BTC-USD` is Yahoo's crypto spelling, and it is refused rather than routed
+  // here: Binance is the sole source of truth for pairs, and a US ticker
+  // called BTC-USD would be a row this adapter can never price. Note that a
+  // hyphen alone does not mean crypto — `BRK-B` is a share class.
+  if (looksLikeCryptoPair(upper)) return null
+
+  // Any other exchange suffix, FX pair or futures contract is a market Pulse
+  // does not model. Refusing it is the honest answer; guessing US would put a
+  // London or Frankfurt listing on the watchlist under an American badge.
+  if (upper.indexOf(".") >= 0 || upper.indexOf("=") >= 0) return null
+  return SymbolID.create("us", upper)
+}
+
 function supports(symbol) {
   return wireSymbol(symbol) !== null
 }
@@ -268,12 +318,123 @@ function parseQuote(symbol, payload, extended) {
   return quote
 }
 
+// --- Search ---------------------------------------------------------------
+
+var SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search"
+
+// Yahoo indexes English names and tickers only. `任天堂`, `サムスン` and
+// `삼성전자` all return nothing, and a 400 comes back for some non-Latin
+// queries outright, so a Japanese or Korean stock is reached by its code until
+// a native-language index is wired.
+function searchRequest(query) {
+  var text = String(query || "").replace(/^\s+|\s+$/g, "")
+  if (!text) return null
+  return {
+    url: SEARCH_URL + "?q=" + encodeURIComponent(text)
+      + "&quotesCount=12&newsCount=0&listsCount=0",
+    query: text
+  }
+}
+
+// Which Yahoo quote types can become a row. Every other future (`CL=F`,
+// `MGC=F`) is dropped by the wire mapping anyway, but naming the types keeps
+// currencies, options and Yahoo's own screeners out before that.
+var SEARCHABLE_TYPES = {
+  EQUITY: "equity", ETF: "etf", INDEX: "index", MUTUALFUND: "fund", FUTURE: "commodity"
+}
+
+// A query that is already a symbol needs no index. Yahoo cannot find
+// `600519.SH` — that is Pulse's spelling, not its own — and answers 400 to
+// Chinese, Japanese and Korean text outright, so without this the codes those
+// users are told to fall back on would be the codes that do not work. Both
+// spellings resolve, and neither costs a request.
+function directMatch(query) {
+  var text = String(query || "").replace(/^\s+|\s+$/g, "")
+  if (!text) return null
+
+  var symbol = SymbolID.parse(text) || symbolFromWire(text)
+  if (!symbol) return null
+
+  // A bare US ticker is indistinguishable from an English word — `nvidia`
+  // parses as a ten-character US code perfectly well — so it is left to the
+  // index, which answers it correctly. A direct match is for queries that name
+  // their venue: a suffix, a crypto pair, or an index the index cannot find.
+  var namesItsVenue = text.indexOf(".") >= 0 || text.indexOf("/") >= 0
+  if (!namesItsVenue && symbol.kind === SymbolID.KIND_SECURITY && symbol.market === "us") return null
+  // It still has to be an instrument this provider can price; otherwise the
+  // row would join the watchlist and never quote.
+  if (!supports(symbol)) return null
+
+  return {
+    key: SymbolID.toString(symbol),
+    symbol: symbol,
+    displayCode: SymbolID.displayCode(symbol),
+    market: symbol.market,
+    name: null,
+    exchangeName: null,
+    type: "direct"
+  }
+}
+
+function parseSearch(payload, query) {
+  var quotes = payload && payload.quotes
+  var results = []
+  var seen = {}
+
+  // A code the user typed outright leads, because they already know what they
+  // want; the index is there for the times they do not.
+  var direct = directMatch(query)
+  if (direct) {
+    results.push(direct)
+    seen[direct.key] = true
+  }
+
+  if (!quotes || typeof quotes.length !== "number") return results
+  for (var i = 0; i < quotes.length; i++) {
+    var item = quotes[i] || {}
+    var type = SEARCHABLE_TYPES[String(item.quoteType || "").toUpperCase()]
+    if (!type) continue
+    var symbol = symbolFromWire(item.symbol)
+    if (!symbol) continue
+    var key = SymbolID.toString(symbol)
+    if (seen[key]) {
+      // The index knows the name for a code the user typed; the direct entry
+      // is the same instrument, so it takes the better label rather than
+      // appearing twice.
+      for (var j = 0; j < results.length; j++) {
+        if (results[j].key === key && !results[j].name) {
+          results[j].name = item.longname || item.shortname || key
+          results[j].exchangeName = item.exchDisp || null
+        }
+      }
+      continue
+    }
+    seen[key] = true
+    results.push({
+      key: key,
+      symbol: symbol,
+      displayCode: SymbolID.displayCode(symbol),
+      market: symbol.market,
+      name: item.longname || item.shortname || key,
+      exchangeName: item.exchDisp || null,
+      type: type
+    })
+  }
+  return results
+}
+
 if (typeof module !== "undefined") module.exports = {
   ID: ID,
   NAME: NAME,
   DESCRIPTOR: DESCRIPTOR,
   DELAY: DELAY,
   wireSymbol: wireSymbol,
+  symbolFromWire: symbolFromWire,
+  looksLikeCryptoPair: looksLikeCryptoPair,
+  searchRequest: searchRequest,
+  directMatch: directMatch,
+  parseSearch: parseSearch,
+  SEARCHABLE_TYPES: SEARCHABLE_TYPES,
   supports: supports,
   requestFor: requestFor,
   parseQuote: parseQuote,

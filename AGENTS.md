@@ -58,6 +58,24 @@ not polled at all. Do not add a parallel fan-out, a shorter floor than the
 15-second clamp in `Watchlist.qml`, or a refresh on a timer faster than the
 source can actually change.
 
+## Settings live in the file
+
+`~/.config/omarchy/pulse/watchlist.json` is the source of truth. The settings
+view is an editor for it, not a second store, and every mutation writes the
+whole file through `Watchlist.save()`.
+
+Two rules that are easy to break there:
+
+- Unknown keys are carried through a write untouched. A newer Pulse's settings
+  must survive being edited by an older one, and silently dropping them is the
+  one failure a user cannot see.
+- Nothing writes before the first successful read. Otherwise a transient parse
+  failure or a missing file gets persisted as an empty watchlist.
+
+Omarchy's `barWidget.schema` is registered into `BarWidgetRegistry` and read by
+nothing in 4.0.0 — `metadataFor` has no callers. Do not add a declarative
+settings form expecting it to render; it will not.
+
 ## Tests
 
 `make test` runs the JavaScript reducers and the source checks; `make validate`

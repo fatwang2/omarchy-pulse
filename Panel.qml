@@ -24,6 +24,7 @@ Panel {
   readonly property color muted: Qt.rgba(foreground.r, foreground.g, foreground.b, 0.55)
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
+  property bool settingsOpen: false
   property var marketState: Model.initialState()
   readonly property var quoteRows: Model.rows(marketState)
   property double nowMs: Date.now()
@@ -64,6 +65,8 @@ Panel {
     onChanged: root.marketState = Model.applySymbols(root.marketState, watchlist.symbols)
   }
 
+  SymbolSearch { id: symbolSearch }
+
   // The panel is the reason to fetch, but not the only one: a pinned or
   // carousel bar label needs prices whether or not anything is open.
   QuoteFeed {
@@ -102,6 +105,34 @@ Panel {
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
     function refresh(): string { feed.refresh(); return "ok" }
+    function settings(): string {
+      root.settingsOpen = !root.settingsOpen
+      if (!root.settingsOpen) symbolSearch.clear()
+      return root.settingsOpen ? "open" : "closed"
+    }
+    // Drives the settings search without synthetic keystrokes, which is how it
+    // gets exercised from a script or a test run.
+    function find(query: string): string {
+      root.settingsOpen = true
+      symbolSearch.query = query
+      return "searching"
+    }
+    function results(): string {
+      return JSON.stringify({
+        query: symbolSearch.query,
+        searching: symbolSearch.searching,
+        message: symbolSearch.message,
+        results: symbolSearch.results.map(function (r) {
+          return { key: r.key, market: r.market, type: r.type, name: r.name }
+        })
+      })
+    }
+    function add(symbol: string): string {
+      return watchlist.addSymbol(symbol) ? "added" : "rejected"
+    }
+    function remove(symbol: string): string {
+      return watchlist.removeSymbol(symbol) ? "removed" : "not on the list"
+    }
     function status(): string {
       return JSON.stringify({
         symbols: root.marketState.symbols,
@@ -109,6 +140,7 @@ Panel {
         errors: root.marketState.errors,
         feed: feed.status,
         barDisplay: watchlist.barDisplay,
+        settingsOpen: root.settingsOpen,
         config: watchlist.configPath,
         configError: watchlist.error
       })
@@ -174,13 +206,14 @@ Panel {
       anchors.fill: parent
       // While the filter holds focus every key belongs to it, including the
       // panel's own single-letter shortcuts.
-      blocked: watchlistView.searching
+      blocked: watchlistView.searching || root.settingsOpen
       onMoveRequested: function (dx, dy) { if (dy !== 0) watchlistView.moveSelection(dy) }
       onActivateRequested: {
         if (watchlistView.visibleRows.length > 0) watchlistView.detailOpen = true
       }
       onCloseRequested: {
-        if (watchlistView.filterText !== "") watchlistView.clearSearch()
+        if (root.settingsOpen) { root.settingsOpen = false; symbolSearch.clear() }
+        else if (watchlistView.filterText !== "") watchlistView.clearSearch()
         else if (watchlistView.detailOpen) watchlistView.detailOpen = false
         else root.close()
       }
@@ -188,6 +221,7 @@ Panel {
         var key = String(text || "").toLowerCase()
         if (key === "/" || key === "f") watchlistView.focusSearch()
         else if (key === "r") feed.refresh()
+        else if (key === "s") root.settingsOpen = true
       }
 
       Column {
@@ -223,24 +257,48 @@ Panel {
             }
           }
 
-          // Back out of the detail without reaching for Escape. It is the only
-          // control in the header because it is the only one that changes what
-          // the panel is showing.
-          Text {
+          // Back out of a sub-view without reaching for Escape, and the gear
+          // that leads into the only sub-view you cannot reach from a row.
+          Row {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            visible: watchlistView.detailOpen
-            text: "← Back"
-            color: root.muted
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            TapHandler { onTapped: watchlistView.detailOpen = false }
+            spacing: Style.space(10)
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              visible: watchlistView.detailOpen || root.settingsOpen
+              text: "← Back"
+              color: root.muted
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              TapHandler {
+                onTapped: {
+                  if (root.settingsOpen) { root.settingsOpen = false; symbolSearch.clear() }
+                  else watchlistView.detailOpen = false
+                }
+              }
+            }
+
+            Text {
+              anchors.verticalCenter: parent.verticalCenter
+              visible: !root.settingsOpen
+              text: "⚙"
+              color: root.muted
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.bodySmall
+              TapHandler {
+                onTapped: {
+                  watchlistView.detailOpen = false
+                  root.settingsOpen = true
+                }
+              }
+            }
           }
         }
 
         WatchlistView {
           id: watchlistView
-          visible: !detailOpen
+          visible: !detailOpen && !root.settingsOpen
           width: parent.width
           rows: root.quoteRows
           status: feed.status
@@ -255,8 +313,20 @@ Panel {
           onRefreshRequested: feed.refresh()
         }
 
+        SettingsView {
+          visible: root.settingsOpen
+          width: parent.width
+          watchlist: watchlist
+          search: symbolSearch
+          textColor: root.foreground
+          riseColor: palette.rise
+          fallColor: palette.fall
+          mutedColor: root.muted
+          panelFontFamily: root.fontFamily
+        }
+
         SymbolDetail {
-          visible: watchlistView.detailOpen && watchlistView.selectedRow !== null
+          visible: !root.settingsOpen && watchlistView.detailOpen && watchlistView.selectedRow !== null
           width: parent.width
           row: watchlistView.selectedRow
           nowMs: root.nowMs
