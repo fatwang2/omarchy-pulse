@@ -174,10 +174,6 @@ Panel {
       detailView.chartPeriod = period
       return detailView.chartPeriod
     }
-    function edit(): string {
-      listTabs.editMode = !listTabs.editMode
-      return listTabs.editMode ? "editing" : "done"
-    }
     function lists(): string { return JSON.stringify(watchlist.listNames) }
     function selectList(name: string): string {
       return watchlist.selectList(name) ? "selected" : "no such list"
@@ -259,14 +255,13 @@ Panel {
       anchors.fill: parent
       // While a text editor holds focus every key belongs to it, including the
       // panel's own single-letter shortcuts.
-      blocked: root.addOpen || root.settingsOpen || listTabs.renaming !== ""
+      blocked: root.addOpen || root.settingsOpen || listTabs.editing
       onMoveRequested: function (dx, dy) { if (dy !== 0) watchlistView.moveSelection(dy) }
       onActivateRequested: {
         if (watchlistView.rows.length > 0) watchlistView.detailOpen = true
       }
       onCloseRequested: {
-        if (listTabs.editMode) listTabs.editMode = false
-        else if (root.addOpen) { root.addOpen = false; addRow.clear() }
+        if (root.addOpen) { root.addOpen = false; addRow.clear() }
         else if (root.settingsOpen) root.settingsOpen = false
         else if (watchlistView.detailOpen) watchlistView.detailOpen = false
         else root.close()
@@ -277,7 +272,6 @@ Panel {
         if (key === "/" || key === "f" || key === "a") root.openAdd()
         else if (key === "r") feed.refresh()
         else if (key === "s") { watchlistView.detailOpen = false; root.addOpen = false; root.settingsOpen = true }
-        else if (key === "e" && !watchlistView.detailOpen && !root.settingsOpen) listTabs.editMode = !listTabs.editMode
         else if (key >= "1" && key <= "9") {
           var names = watchlist.listNames
           var index = Number(key) - 1
@@ -397,7 +391,7 @@ Panel {
           accentColor: Color.accent
           panelFontFamily: root.fontFamily
           onSelected: function (name) { watchlist.selectList(name) }
-          onAddRequested: watchlist.addList("List " + (watchlist.listNames.length + 1))
+          onCreateRequested: function (name) { watchlist.addList(name) }
           onRenameRequested: function (name, newName) { watchlist.renameList(name, newName) }
           onRemoveRequested: function (name) { watchlist.removeList(name) }
         }
@@ -406,7 +400,7 @@ Panel {
           id: watchlistView
           visible: !detailOpen && !root.settingsOpen
           width: parent.width
-          editMode: listTabs.editMode
+          listName: watchlist.activeList
           onRowMoveRequested: function (key, delta) { watchlist.moveSymbol(key, delta) }
           onRowRemoveRequested: function (key) { watchlist.removeSymbol(key) }
           rows: root.quoteRows

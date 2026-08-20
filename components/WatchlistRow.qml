@@ -23,12 +23,11 @@ Rectangle {
   property bool selected: false
   property bool striped: false
   property double nowMs: 0
-  // Edit mode swaps the figures for reorder-and-remove, macOS's drag-and-drop
-  // simplified to buttons — a drag inside a popup that closes on outside
-  // clicks is a gesture that loses its own list halfway through.
-  property bool editMode: false
   property bool canMoveUp: false
   property bool canMoveDown: false
+  // Named so the remove tooltip can say what it removes from — "Remove from
+  // Watching" is a different promise than "Remove".
+  property string listName: ""
 
   signal activated()
   signal moveRequested(int delta)
@@ -59,10 +58,7 @@ Rectangle {
         : "transparent"
 
   HoverHandler { id: hover }
-  TapHandler {
-    enabled: !root.editMode
-    onTapped: root.activated()
-  }
+  TapHandler { onTapped: root.activated() }
 
   // The full name, on demand. Only when it actually elided — a tooltip that
   // repeats what the row already shows is noise on every hover.
@@ -120,7 +116,7 @@ Rectangle {
     id: chart
     anchors.left: identity.right
     anchors.leftMargin: Style.space(10)
-    anchors.right: root.editMode ? editActions.left : figures.left
+    anchors.right: hoverActions.visible ? hoverActions.left : figures.left
     anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     height: Style.space(24)
@@ -130,11 +126,15 @@ Rectangle {
     guideColor: root.textColor
   }
 
+  // List edits, revealed by hover at the row's edge the way the network
+  // panel reveals "forget" — the same actions macOS keeps in the row's
+  // context menu, in the shell's own idiom. The chart yields the width;
+  // the price never moves.
   Row {
-    id: editActions
-    visible: root.editMode
-    anchors.right: parent.right
-    anchors.rightMargin: Style.space(4)
+    id: hoverActions
+    visible: hover.hovered
+    anchors.right: figures.left
+    anchors.rightMargin: Style.space(2)
     anchors.verticalCenter: parent.verticalCenter
     spacing: 0
 
@@ -158,7 +158,7 @@ Rectangle {
     }
     PanelActionButton {
       iconText: "󰩺"
-      tooltipText: "Remove from this list"
+      tooltipText: root.listName ? "Remove from " + root.listName : "Remove"
       foreground: root.mutedColor
       fontFamily: root.panelFontFamily
       onClicked: root.removeRequested()
@@ -167,7 +167,6 @@ Rectangle {
 
   Column {
     id: figures
-    visible: !root.editMode
     anchors.right: parent.right
     anchors.rightMargin: Style.space(9)
     anchors.verticalCenter: parent.verticalCenter

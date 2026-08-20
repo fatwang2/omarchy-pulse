@@ -60,12 +60,26 @@ source can actually change.
 
 ## Ordering is the user's
 
-Rows render the active list's order verbatim. "Move up" in edit mode edits
-the same order the rows display, so nothing anywhere may re-sort the list —
-not by market, not alphabetically, and least of all by a value that moves.
-Membership and order are list operations and live only in edit mode; the
-quote detail describes one instrument and holds no list controls. If a grouped presentation is ever wanted, it must be a presentation
-of an unchanged order, and the move buttons must disappear with it.
+Rows render the active list's order verbatim. "Move up" in a row's
+hover-revealed actions edits the same order the rows display, so nothing
+anywhere may re-sort the list — not by market, not alphabetically, and least
+of all by a value that moves. Membership and order are list operations and
+live in the hover-revealed row and tab actions; the quote detail describes
+one instrument and holds no list controls.
+
+## Interactions are the shell's, functions are the app's
+
+When porting a macOS interaction, keep what it does and re-express how.
+Context menus and drag-to-reorder are macOS idiom; the shell's idiom is
+inline actions revealed at the row's edge on hover (the network panel's
+"forget" pattern), inline text fields for naming, and a double click to
+edit a label in place. QQC.Popup context menus render poorly against the
+shell's panels — tried and removed. A pencil-toggled edit mode was also
+tried: it worked, but it made the panel the only surface in the shell with
+a mode, and it read as foreign.
+
+If a grouped presentation is ever wanted, it must be a presentation of an
+unchanged order, and the move buttons must disappear with it.
 
 ## Settings live in the file
 

@@ -23,7 +23,7 @@ Column {
   // nothing left to say — a row that stays lit reads as meaning something.
   property int selectedIndex: -1
   property bool detailOpen: false
-  property bool editMode: false
+  property string listName: ""
 
   readonly property var selectedRow: (selectedIndex >= 0 && selectedIndex < rows.length)
     ? rows[selectedIndex]
@@ -79,7 +79,7 @@ Column {
       striped: index % 2 === 1
       selected: index === root.selectedIndex
       nowMs: root.nowMs
-      editMode: root.editMode
+      listName: root.listName
       canMoveUp: index > 0
       canMoveDown: index < root.rows.length - 1
       textColor: root.textColor

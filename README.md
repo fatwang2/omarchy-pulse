@@ -120,14 +120,16 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
   the source's own delay. A closed market's last print is the close — final,
   not stale — and is never marked.
 - Press `/` (or `f`, `a`) to add a symbol, `r` to refresh, `s` for settings,
-  `e` to edit, `1`–`9` to switch lists, `↑`/`↓` to move, `Enter` for the
+  `1`–`9` to switch lists, `↑`/`↓` to move, `Enter` for the
   quote detail, `Esc` to back out.
-- The pencil beside the tabs (or `e`) enters edit mode: rows grow
-  move-up/move-down/remove controls, a tab tap becomes an inline rename, and
-  a delete appears inside each tab. It is macOS's drag-and-drop and
-  right-click menu simplified to one visible state — a drag inside a popup
-  that closes on outside clicks is a gesture that loses its own list halfway
-  through.
+- Lists keep the macOS group bar's functions in the shell's own idiom: "+"
+  becomes an inline name field so a list is born with its name, a double
+  click renames a tab in place, and hovering a tab reveals its delete.
+  Hovering a row reveals move-up, move-down and remove at its edge — the
+  same actions macOS keeps in a context menu, surfaced the way the network
+  panel reveals "forget". Drag-to-reorder is the one macOS gesture not
+  carried over: a drag inside a popup that closes on outside clicks loses
+  its own list halfway through.
 - The quote detail carries the chart at reading size: the session line
   (`1D`, from the same response as the quote) and daily / weekly / monthly
   candlesticks with a volume strip (`D` / `W` / `M`, fetched on first look
@@ -191,7 +193,6 @@ omarchy-shell pulse.omarchy lists             # the named lists
 omarchy-shell pulse.omarchy selectList HK     # switch the active tab
 omarchy-shell pulse.omarchy detail AAPL       # open one row's detail
 omarchy-shell pulse.omarchy chartPeriod week  # switch the detail chart
-omarchy-shell pulse.omarchy edit              # toggle edit mode
 ```
 
 `add` and `remove` write the same file the settings view does, so they are also
