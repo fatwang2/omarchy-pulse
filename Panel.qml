@@ -325,7 +325,6 @@ Panel {
               tooltipText: "Add symbol (/)"
               foreground: root.addOpen ? root.foreground : root.muted
               fontFamily: root.fontFamily
-              fontSize: Style.font.bodySmall
               onClicked: root.addOpen ? (function () { root.addOpen = false; addRow.clear() })() : root.openAdd()
             }
 
@@ -335,7 +334,6 @@ Panel {
               tooltipText: "Settings (s)"
               foreground: root.muted
               fontFamily: root.fontFamily
-              fontSize: Style.font.bodySmall
               onClicked: {
                 watchlistView.detailOpen = false
                 root.addOpen = false

@@ -32,7 +32,6 @@ Column {
     width: parent.width
     foreground: root.textColor
     fontFamily: root.panelFontFamily
-    fontSize: Style.font.caption
     options: [
       { value: "icon", label: "Icon" },
       { value: "pinned", label: "Pinned quote" },
@@ -84,7 +83,6 @@ Column {
     width: parent.width
     foreground: root.textColor
     fontFamily: root.panelFontFamily
-    fontSize: Style.font.caption
     // The floor is Yahoo's per-IP budget, not a preference; anything faster
     // than the source can change is spent requests.
     options: [
@@ -191,7 +189,6 @@ Column {
             tooltipText: "Rename"
             foreground: root.mutedColor
             fontFamily: root.panelFontFamily
-            fontSize: Style.font.bodySmall
             onClicked: root.renamingList = listRow.modelData
           }
 
@@ -204,7 +201,6 @@ Column {
             tooltipText: enabled ? "Delete list" : "The last list stays"
             foreground: root.mutedColor
             fontFamily: root.panelFontFamily
-            fontSize: Style.font.bodySmall
             onClicked: root.watchlist.removeList(listRow.modelData)
           }
         }
