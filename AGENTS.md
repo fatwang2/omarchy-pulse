@@ -60,10 +60,11 @@ source can actually change.
 
 ## Ordering is the user's
 
-Rows render the active list's order verbatim. "Move up" in the quote detail
-edits the same order the rows display, so nothing anywhere may re-sort the
-list — not by market, not alphabetically, and least of all by a value that
-moves. If a grouped presentation is ever wanted, it must be a presentation
+Rows render the active list's order verbatim. "Move up" in edit mode edits
+the same order the rows display, so nothing anywhere may re-sort the list —
+not by market, not alphabetically, and least of all by a value that moves.
+Membership and order are list operations and live only in edit mode; the
+quote detail describes one instrument and holds no list controls. If a grouped presentation is ever wanted, it must be a presentation
 of an unchanged order, and the move buttons must disappear with it.
 
 ## Settings live in the file

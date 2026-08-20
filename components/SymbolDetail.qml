@@ -18,12 +18,8 @@ Column {
   required property color mutedColor
   required property string panelFontFamily
   property double nowMs: 0
-  property bool canMoveUp: false
-  property bool canMoveDown: false
 
   signal dismissed()
-  signal moveRequested(int delta)
-  signal removeRequested()
 
   readonly property var quote: row ? row.quote : null
   readonly property bool hasQuote: !!quote
@@ -256,38 +252,4 @@ Column {
     Field { width: parent.width; label: "As of"; value: root.timestampText() }
   }
 
-  PanelSeparator { foreground: root.textColor }
-
-  // What can be done to the row, done from the row. Membership edits live
-  // here rather than in settings: settings is for how the plugin behaves,
-  // this screen is about one instrument.
-  Row {
-    spacing: Style.space(4)
-
-    PanelActionButton {
-      enabled: root.canMoveUp
-      opacity: enabled ? 1.0 : 0.3
-      iconText: "󰜷"
-      tooltipText: "Move up the list"
-      foreground: root.mutedColor
-      fontFamily: root.panelFontFamily
-      onClicked: root.moveRequested(-1)
-    }
-    PanelActionButton {
-      enabled: root.canMoveDown
-      opacity: enabled ? 1.0 : 0.3
-      iconText: "󰜮"
-      tooltipText: "Move down the list"
-      foreground: root.mutedColor
-      fontFamily: root.panelFontFamily
-      onClicked: root.moveRequested(1)
-    }
-    PanelActionButton {
-      iconText: "󰩺"
-      tooltipText: "Remove from this list"
-      foreground: root.mutedColor
-      fontFamily: root.panelFontFamily
-      onClicked: root.removeRequested()
-    }
-  }
 }

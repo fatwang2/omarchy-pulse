@@ -441,21 +441,7 @@ Panel {
           fallColor: palette.fall
           mutedColor: root.muted
           panelFontFamily: root.fontFamily
-          canMoveUp: watchlistView.selectedIndex > 0
-          canMoveDown: watchlistView.selectedIndex < root.quoteRows.length - 1
           onDismissed: watchlistView.detailOpen = false
-          onMoveRequested: function (delta) {
-            if (watchlistView.selectedRow) {
-              watchlist.moveSymbol(watchlistView.selectedRow.key, delta)
-              watchlistView.selectedIndex = Math.max(0, Math.min(root.quoteRows.length - 1, watchlistView.selectedIndex + delta))
-            }
-          }
-          onRemoveRequested: {
-            if (watchlistView.selectedRow) {
-              watchlist.removeSymbol(watchlistView.selectedRow.key)
-              watchlistView.detailOpen = false
-            }
-          }
         }
       }
     }

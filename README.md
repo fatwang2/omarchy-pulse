@@ -131,8 +131,7 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 - The quote detail carries the chart at reading size: the session line
   (`1D`, from the same response as the quote) and daily / weekly / monthly
   candlesticks with a volume strip (`D` / `W` / `M`, fetched on first look
-  and cached for ten minutes). Its footer also moves the symbol or removes
-  it from the list.
+  and cached for ten minutes).
 
 ## Adding symbols
 
