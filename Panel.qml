@@ -26,17 +26,13 @@ Panel {
 
   property bool settingsOpen: false
   property bool addOpen: false
-  // The macOS isReordering state: while on, the schedule order is bypassed so
-  // the rows show the persisted sequence the arrows actually edit, and every
-  // control that would change what "the list" means is disabled.
-  property bool reordering: false
   property var marketState: Model.initialState()
-  // What the rows show: the schedule-aware order (market blocks led by the
-  // session trading now, pins atop their own block) unless reordering has to
-  // see the raw sequence, or the user turned the schedule off.
-  readonly property var displayedSymbols: (root.reordering || !watchlist.prioritizeOpenMarkets)
-    ? watchlist.activeSymbols
-    : SessionOrder.orderedSymbols(watchlist.activeSymbols, watchlist.activePinnedSymbols, root.nowMs)
+  // What the rows show: the schedule-aware order — market blocks led by the
+  // session trading now, pins atop their own block — unless the user turned
+  // the schedule off, in which case the saved sequence stands.
+  readonly property var displayedSymbols: watchlist.prioritizeOpenMarkets
+    ? SessionOrder.orderedSymbols(watchlist.activeSymbols, watchlist.activePinnedSymbols, root.nowMs)
+    : watchlist.activeSymbols
   readonly property var quoteRows: Model.rowsForSymbols(marketState, displayedSymbols)
   property double nowMs: Date.now()
 
@@ -67,7 +63,6 @@ Panel {
   function closeSubviews() {
     root.settingsOpen = false
     root.addOpen = false
-    root.reordering = false
     addRow.clear()
     watchlistView.detailOpen = false
   }
@@ -273,8 +268,7 @@ Panel {
         if (watchlistView.rows.length > 0) watchlistView.detailOpen = true
       }
       onCloseRequested: {
-        if (root.reordering) root.reordering = false
-        else if (root.addOpen) { root.addOpen = false; addRow.clear() }
+        if (root.addOpen) { root.addOpen = false; addRow.clear() }
         else if (root.settingsOpen) root.settingsOpen = false
         else if (watchlistView.detailOpen) watchlistView.detailOpen = false
         else root.close()
@@ -282,7 +276,6 @@ Panel {
       onTabRequested: function (direction) { root.switchPanel(direction) }
       onTextKey: function (text) {
         var key = String(text || "").toLowerCase()
-        if (root.reordering) return
         if (key === "/" || key === "f" || key === "a") root.openAdd()
         else if (key === "r") feed.refresh()
         else if (key === "s") { watchlistView.detailOpen = false; root.addOpen = false; root.settingsOpen = true }
@@ -315,7 +308,7 @@ Panel {
             height: Style.space(22)
             spacing: Style.space(7)
 
-            readonly property bool inSubview: watchlistView.detailOpen || root.settingsOpen || root.reordering
+            readonly property bool inSubview: watchlistView.detailOpen || root.settingsOpen
 
             PanelActionButton {
               visible: parent.inSubview
@@ -324,8 +317,7 @@ Panel {
               foreground: root.muted
               fontFamily: root.fontFamily
               onClicked: {
-                if (root.reordering) root.reordering = false
-                else if (root.settingsOpen) root.settingsOpen = false
+                if (root.settingsOpen) root.settingsOpen = false
                 else watchlistView.detailOpen = false
               }
             }
@@ -340,11 +332,9 @@ Panel {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: parent.inSubview
-                ? (root.reordering
-                    ? "Adjust order"
-                    : (root.settingsOpen
-                        ? "Settings"
-                        : (watchlistView.selectedRow ? watchlistView.selectedRow.displayCode : "")))
+                ? (root.settingsOpen
+                    ? "Settings"
+                    : (watchlistView.selectedRow ? watchlistView.selectedRow.displayCode : ""))
                 : "Pulse"
               color: root.foreground
               font.family: root.fontFamily
@@ -361,7 +351,7 @@ Panel {
             spacing: Style.space(2)
 
             PanelActionButton {
-              visible: !root.settingsOpen && !watchlistView.detailOpen && !root.reordering
+              visible: !root.settingsOpen && !watchlistView.detailOpen
               iconText: "󰍉"
               tooltipText: "Add symbol (/)"
               foreground: root.addOpen ? root.foreground : root.muted
@@ -370,7 +360,7 @@ Panel {
             }
 
             PanelActionButton {
-              visible: !root.settingsOpen && !root.reordering
+              visible: !root.settingsOpen
               iconText: "󰒓"
               tooltipText: "Settings (s)"
               foreground: root.muted
@@ -401,8 +391,6 @@ Panel {
         ListTabs {
           id: listTabs
           visible: !root.settingsOpen && !watchlistView.detailOpen
-          enabled: !root.reordering
-          opacity: root.reordering ? 0.45 : 1
           width: parent.width
           names: watchlist.listNames
           activeName: watchlist.activeList
@@ -420,12 +408,9 @@ Panel {
           visible: !detailOpen && !root.settingsOpen
           width: parent.width
           listName: watchlist.activeList
-          reordering: root.reordering
           pinnedKeys: watchlist.activePinnedSymbols
-          onRowMoveRequested: function (key, delta) { watchlist.moveSymbol(key, delta) }
           onRowRemoveRequested: function (key) { watchlist.removeSymbol(key) }
           onRowPinRequested: function (key) { watchlist.togglePin(key) }
-          onReorderRequested: root.reordering = true
           rows: root.quoteRows
           status: feed.status
           message: watchlist.error

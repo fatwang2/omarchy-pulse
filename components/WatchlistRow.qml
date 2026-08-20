@@ -23,21 +23,14 @@ Rectangle {
   property bool selected: false
   property bool striped: false
   property double nowMs: 0
-  property bool canMoveUp: false
-  property bool canMoveDown: false
   property bool pinned: false
-  // The macOS isReordering pass-through: arrows stay visible and edit the
-  // sequence the rows are showing, because the schedule order is bypassed.
-  property bool reordering: false
   // Named so the remove tooltip can say what it removes from — "Remove from
   // Watching" is a different promise than "Remove".
   property string listName: ""
 
   signal activated()
-  signal moveRequested(int delta)
   signal removeRequested()
   signal pinRequested()
-  signal reorderRequested()
 
   readonly property var quote: row.quote
   readonly property bool hasQuote: !!quote
@@ -66,12 +59,7 @@ Rectangle {
   HoverHandler { id: hover }
   TapHandler { onTapped: root.activated() }
 
-  // The full name, on demand. Only when it actually elided — a tooltip that
-  // repeats what the row already shows is noise on every hover.
-  PanelToolTip {
-    visible: hover.hovered && root.nameElided
-    text: root.primaryName
-  }
+
 
   Column {
     id: identity
@@ -95,6 +83,17 @@ Rectangle {
         font.pixelSize: Style.font.bodySmall
         font.bold: true
         elide: Text.ElideRight
+
+        // The full name, on demand — from the name itself, not the row. A
+        // pointer crossing the chart on its way to the price should not
+        // raise a caption; pointing at the truncated text is the question
+        // the tooltip answers. And only when it actually elided: repeating
+        // what the row shows is noise on every hover.
+        HoverHandler { id: nameHover }
+        PanelToolTip {
+          visible: nameHover.hovered && root.nameElided
+          text: root.primaryName
+        }
       }
 
       // The macOS pin.fill, tertiary: pinned is a fact about the row, read
@@ -140,9 +139,7 @@ Rectangle {
     id: chart
     anchors.left: identity.right
     anchors.leftMargin: Style.space(10)
-    anchors.right: root.reordering
-      ? reorderActions.left
-      : (hoverActions.visible ? hoverActions.left : figures.left)
+    anchors.right: hoverActions.visible ? hoverActions.left : figures.left
     anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     height: Style.space(24)
@@ -154,13 +151,13 @@ Rectangle {
 
   // List edits, revealed by hover at the row's edge the way the network
   // panel reveals "forget" — the actions macOS keeps in the row's context
-  // menu, in the shell's own idiom. Reordering is not among them: moving one
-  // slot at a time against a schedule-ordered view edits an order you cannot
-  // see, which is why "adjust" opens the macOS-style pass instead. The chart
-  // yields the width; the price never moves.
+  // menu, in the shell's own idiom. The chart yields the width; the price
+  // never moves. Manual reordering is deliberately absent: the schedule
+  // orders the rows, and a move control shown against a schedule-ordered
+  // view would edit an order the eye cannot see.
   Row {
     id: hoverActions
-    visible: hover.hovered && !root.reordering
+    visible: hover.hovered
     anchors.right: figures.left
     anchors.rightMargin: Style.space(2)
     anchors.verticalCenter: parent.verticalCenter
@@ -174,13 +171,6 @@ Rectangle {
       onClicked: root.pinRequested()
     }
     PanelActionButton {
-      iconText: "󰒺"
-      tooltipText: "Adjust order"
-      foreground: root.mutedColor
-      fontFamily: root.panelFontFamily
-      onClicked: root.reorderRequested()
-    }
-    PanelActionButton {
       iconText: "󰩺"
       tooltipText: root.listName ? "Remove from " + root.listName : "Remove"
       foreground: root.mutedColor
@@ -189,39 +179,8 @@ Rectangle {
     }
   }
 
-  // The reordering pass: arrows stay put — no hover hunt — and the figures
-  // step aside, since the pass is about position, not price.
-  Row {
-    id: reorderActions
-    visible: root.reordering
-    anchors.right: parent.right
-    anchors.rightMargin: Style.space(4)
-    anchors.verticalCenter: parent.verticalCenter
-    spacing: 0
-
-    PanelActionButton {
-      enabled: root.canMoveUp
-      opacity: enabled ? 1.0 : 0.3
-      iconText: "󰜷"
-      tooltipText: "Move up"
-      foreground: root.mutedColor
-      fontFamily: root.panelFontFamily
-      onClicked: root.moveRequested(-1)
-    }
-    PanelActionButton {
-      enabled: root.canMoveDown
-      opacity: enabled ? 1.0 : 0.3
-      iconText: "󰜮"
-      tooltipText: "Move down"
-      foreground: root.mutedColor
-      fontFamily: root.panelFontFamily
-      onClicked: root.moveRequested(1)
-    }
-  }
-
   Column {
     id: figures
-    visible: !root.reordering
     anchors.right: parent.right
     anchors.rightMargin: Style.space(9)
     anchors.verticalCenter: parent.verticalCenter

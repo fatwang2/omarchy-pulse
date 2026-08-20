@@ -24,7 +24,6 @@ Column {
   property int selectedIndex: -1
   property bool detailOpen: false
   property string listName: ""
-  property bool reordering: false
   property var pinnedKeys: []
 
   readonly property var selectedRow: (selectedIndex >= 0 && selectedIndex < rows.length)
@@ -46,10 +45,8 @@ Column {
     if (selectedIndex >= rows.length) selectedIndex = rows.length - 1
   }
 
-  signal rowMoveRequested(string key, int delta)
   signal rowRemoveRequested(string key)
   signal rowPinRequested(string key)
-  signal reorderRequested()
 
   spacing: Style.space(8)
 
@@ -84,24 +81,18 @@ Column {
       selected: index === root.selectedIndex
       nowMs: root.nowMs
       listName: root.listName
-      reordering: root.reordering
       pinned: root.pinnedKeys.indexOf(modelData.key) >= 0
-      canMoveUp: index > 0
-      canMoveDown: index < root.rows.length - 1
       textColor: root.textColor
       riseColor: root.riseColor
       fallColor: root.fallColor
       mutedColor: root.mutedColor
       panelFontFamily: root.panelFontFamily
       onActivated: {
-        if (root.reordering) return
         root.selectedIndex = index
         root.detailOpen = true
       }
-      onMoveRequested: function (delta) { root.rowMoveRequested(modelData.key, delta) }
       onRemoveRequested: root.rowRemoveRequested(modelData.key)
       onPinRequested: root.rowPinRequested(modelData.key)
-      onReorderRequested: root.reorderRequested()
     }
   }
 
