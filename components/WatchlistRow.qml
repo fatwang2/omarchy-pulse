@@ -25,6 +25,10 @@ Rectangle {
   property double nowMs: 0
   property bool canMoveUp: false
   property bool canMoveDown: false
+  property bool pinned: false
+  // The macOS isReordering pass-through: arrows stay visible and edit the
+  // sequence the rows are showing, because the schedule order is bypassed.
+  property bool reordering: false
   // Named so the remove tooltip can say what it removes from — "Remove from
   // Watching" is a different promise than "Remove".
   property string listName: ""
@@ -32,6 +36,8 @@ Rectangle {
   signal activated()
   signal moveRequested(int delta)
   signal removeRequested()
+  signal pinRequested()
+  signal reorderRequested()
 
   readonly property var quote: row.quote
   readonly property bool hasQuote: !!quote
@@ -76,15 +82,33 @@ Rectangle {
     width: Style.space(118)
     spacing: Style.space(3)
 
-    Text {
-      id: nameText
+    Row {
       width: parent.width
-      text: root.primaryName
-      color: root.textColor
-      font.family: root.panelFontFamily
-      font.pixelSize: Style.font.bodySmall
-      font.bold: true
-      elide: Text.ElideRight
+      spacing: Style.space(4)
+
+      Text {
+        id: nameText
+        width: Math.min(implicitWidth, parent.width - (pinMark.visible ? Style.space(14) : 0))
+        text: root.primaryName
+        color: root.textColor
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.bodySmall
+        font.bold: true
+        elide: Text.ElideRight
+      }
+
+      // The macOS pin.fill, tertiary: pinned is a fact about the row, read
+      // at a glance and never the only signal — the row also sits atop its
+      // market block.
+      Text {
+        id: pinMark
+        visible: root.pinned
+        anchors.verticalCenter: nameText.verticalCenter
+        text: "󰐃"
+        color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.40)
+        font.family: root.panelFontFamily
+        font.pixelSize: Style.font.caption
+      }
     }
 
     Row {
@@ -116,7 +140,9 @@ Rectangle {
     id: chart
     anchors.left: identity.right
     anchors.leftMargin: Style.space(10)
-    anchors.right: hoverActions.visible ? hoverActions.left : figures.left
+    anchors.right: root.reordering
+      ? reorderActions.left
+      : (hoverActions.visible ? hoverActions.left : figures.left)
     anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     height: Style.space(24)
@@ -127,14 +153,49 @@ Rectangle {
   }
 
   // List edits, revealed by hover at the row's edge the way the network
-  // panel reveals "forget" — the same actions macOS keeps in the row's
-  // context menu, in the shell's own idiom. The chart yields the width;
-  // the price never moves.
+  // panel reveals "forget" — the actions macOS keeps in the row's context
+  // menu, in the shell's own idiom. Reordering is not among them: moving one
+  // slot at a time against a schedule-ordered view edits an order you cannot
+  // see, which is why "adjust" opens the macOS-style pass instead. The chart
+  // yields the width; the price never moves.
   Row {
     id: hoverActions
-    visible: hover.hovered
+    visible: hover.hovered && !root.reordering
     anchors.right: figures.left
     anchors.rightMargin: Style.space(2)
+    anchors.verticalCenter: parent.verticalCenter
+    spacing: 0
+
+    PanelActionButton {
+      iconText: root.pinned ? "󰤰" : "󰐃"
+      tooltipText: root.pinned ? "Unpin" : "Pin to top of its market"
+      foreground: root.mutedColor
+      fontFamily: root.panelFontFamily
+      onClicked: root.pinRequested()
+    }
+    PanelActionButton {
+      iconText: "󰒺"
+      tooltipText: "Adjust order"
+      foreground: root.mutedColor
+      fontFamily: root.panelFontFamily
+      onClicked: root.reorderRequested()
+    }
+    PanelActionButton {
+      iconText: "󰩺"
+      tooltipText: root.listName ? "Remove from " + root.listName : "Remove"
+      foreground: root.mutedColor
+      fontFamily: root.panelFontFamily
+      onClicked: root.removeRequested()
+    }
+  }
+
+  // The reordering pass: arrows stay put — no hover hunt — and the figures
+  // step aside, since the pass is about position, not price.
+  Row {
+    id: reorderActions
+    visible: root.reordering
+    anchors.right: parent.right
+    anchors.rightMargin: Style.space(4)
     anchors.verticalCenter: parent.verticalCenter
     spacing: 0
 
@@ -156,17 +217,11 @@ Rectangle {
       fontFamily: root.panelFontFamily
       onClicked: root.moveRequested(1)
     }
-    PanelActionButton {
-      iconText: "󰩺"
-      tooltipText: root.listName ? "Remove from " + root.listName : "Remove"
-      foreground: root.mutedColor
-      fontFamily: root.panelFontFamily
-      onClicked: root.removeRequested()
-    }
   }
 
   Column {
     id: figures
+    visible: !root.reordering
     anchors.right: parent.right
     anchors.rightMargin: Style.space(9)
     anchors.verticalCenter: parent.verticalCenter

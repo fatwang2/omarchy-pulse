@@ -94,6 +94,26 @@ Column {
 
   PanelSeparator { foreground: root.textColor }
 
+  // --- Order ----------------------------------------------------------------
+
+  PanelSectionHeader {
+    text: "ORDER"
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+  }
+
+  Toggle {
+    width: parent.width
+    label: "Prioritize open markets"
+    description: "Lead with the session trading now — Asia through the Beijing day, the US after. Off shows your own order."
+    checked: root.watchlist.prioritizeOpenMarkets
+    foreground: root.textColor
+    fontFamily: root.panelFontFamily
+    onClicked: root.watchlist.setValue("prioritizeOpenMarkets", !root.watchlist.prioritizeOpenMarkets)
+  }
+
+  PanelSeparator { foreground: root.textColor }
+
   // --- Sources --------------------------------------------------------------
   //
   // The frame the macOS app's multi-provider layer will fill in. One source is

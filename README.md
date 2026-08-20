@@ -105,9 +105,18 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 
 ## Reading the panel
 
-- Rows keep the list's own order, verbatim: the list is your ranking, and
-  "move up" in a row's detail edits the same order the rows display. Nothing
-  re-sorts — least of all on a value that moves.
+- Rows follow the schedule, the way the macOS app orders them: markets group
+  into blocks and the session trading now leads — Asia through the Beijing
+  day (HK, China A, Japan, Korea, US), the US after 17:00 Beijing — with
+  metals and crypto, which never close, always behind the session-bound
+  blocks. Pinning a row (hover → pin) raises it to the top of its own
+  market block, not the top of the list. Your saved order is never touched;
+  it stays the tiebreak inside every block, and **Settings → Order** turns
+  the schedule off entirely.
+- "Adjust order" (hover → 󰒺) opens the reordering pass: the schedule is
+  bypassed so the rows show the exact sequence the arrows edit, and the
+  tabs, search and settings sit disabled until Esc or ← ends it — the macOS
+  isReordering state, with arrows in place of drag.
 - The identity column is capped so the session line gets the width. An elided
   name shows in full after hovering the row for a moment.
 - Each priced row carries the current session's intraday line. It comes from
@@ -125,11 +134,9 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 - Lists keep the macOS group bar's functions in the shell's own idiom: "+"
   becomes an inline name field so a list is born with its name, a double
   click renames a tab in place, and hovering a tab reveals its delete.
-  Hovering a row reveals move-up, move-down and remove at its edge — the
+  Hovering a row reveals pin, adjust-order and remove at its edge — the
   same actions macOS keeps in a context menu, surfaced the way the network
-  panel reveals "forget". Drag-to-reorder is the one macOS gesture not
-  carried over: a drag inside a popup that closes on outside clicks loses
-  its own list halfway through.
+  panel reveals "forget".
 - The quote detail carries the chart at reading size: the session line
   (`1D`, from the same response as the quote) and daily / weekly / monthly
   candlesticks with a volume strip (`D` / `W` / `M`, fetched on first look

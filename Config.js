@@ -46,9 +46,10 @@ function canonicalList(values) {
 function emptyConfig() {
   return {
     version: VERSION,
-    lists: [{ name: DEFAULT_LIST_NAME, symbols: [] }],
+    lists: [{ name: DEFAULT_LIST_NAME, symbols: [], pinnedSymbols: [] }],
     activeList: DEFAULT_LIST_NAME,
     pollIntervalSeconds: 60,
+    prioritizeOpenMarkets: true,
     barDisplay: "icon",
     pinnedSymbol: "",
     carouselIntervalSeconds: 6,
@@ -57,7 +58,7 @@ function emptyConfig() {
 }
 
 var KNOWN_KEYS = ["version", "lists", "activeList", "symbols", "pollIntervalSeconds",
-                  "barDisplay", "pinnedSymbol", "carouselIntervalSeconds"]
+                  "prioritizeOpenMarkets", "barDisplay", "pinnedSymbol", "carouselIntervalSeconds"]
 
 // A list name has to survive being a tab label and a lookup key. Empty names
 // and duplicates are the two that break one or the other.
@@ -79,7 +80,12 @@ function parseLists(raw) {
     var entry = source[i] || {}
     var name = uniqueName(entry.name, names, "List " + (i + 1))
     names.push(name)
-    lists.push({ name: name, symbols: canonicalList(entry.symbols) })
+    var symbols = canonicalList(entry.symbols)
+    // Pins are memberships: a pin whose symbol left the list means nothing.
+    var pins = canonicalList(entry.pinnedSymbols).filter(function (key) {
+      return symbols.indexOf(key) >= 0
+    })
+    lists.push({ name: name, symbols: symbols, pinnedSymbols: pins })
   }
   return lists
 }
@@ -96,7 +102,7 @@ function parse(raw) {
 
   var lists = parseLists(parsed.lists)
   if (lists.length === 0) {
-    lists = [{ name: DEFAULT_LIST_NAME, symbols: canonicalList(parsed.symbols) }]
+    lists = [{ name: DEFAULT_LIST_NAME, symbols: canonicalList(parsed.symbols), pinnedSymbols: [] }]
   }
   config.lists = lists
 
@@ -105,6 +111,7 @@ function parse(raw) {
 
   // Yahoo rate-limits per IP, so the floor is not a preference.
   config.pollIntervalSeconds = clampInt(parsed.pollIntervalSeconds, 60, 15, 3600)
+  config.prioritizeOpenMarkets = parsed.prioritizeOpenMarkets !== false
   var display = trimmed(parsed.barDisplay)
   config.barDisplay = BAR_MODES.indexOf(display) >= 0 ? display : "icon"
   config.pinnedSymbol = canonical(parsed.pinnedSymbol)
@@ -126,10 +133,12 @@ function serialize(config) {
   for (var key in config.passthrough) payload[key] = config.passthrough[key]
   payload.version = VERSION
   payload.lists = config.lists.map(function (list) {
-    return { name: list.name, symbols: list.symbols.slice() }
+    return { name: list.name, symbols: list.symbols.slice(),
+             pinnedSymbols: (list.pinnedSymbols || []).slice() }
   })
   payload.activeList = config.activeList
   payload.pollIntervalSeconds = config.pollIntervalSeconds
+  payload.prioritizeOpenMarkets = config.prioritizeOpenMarkets
   payload.barDisplay = config.barDisplay
   payload.pinnedSymbol = config.pinnedSymbol
   payload.carouselIntervalSeconds = config.carouselIntervalSeconds
@@ -153,6 +162,15 @@ function activeIndex(config) {
 function activeSymbols(config) {
   var list = config.lists[activeIndex(config)]
   return list ? list.symbols.slice() : []
+}
+
+function activePinnedSymbols(config) {
+  var list = config.lists[activeIndex(config)]
+  return (list && list.pinnedSymbols) ? list.pinnedSymbols.slice() : []
+}
+
+function isPinned(config, raw) {
+  return activePinnedSymbols(config).indexOf(canonical(raw)) >= 0
 }
 
 function listNames(config) {
@@ -193,11 +211,25 @@ function withLists(config, lists) {
   return next
 }
 
-function replaceActive(config, symbols) {
+function replaceActive(config, symbols, pinnedSymbols) {
   var lists = config.lists.slice()
   var index = activeIndex(config)
-  lists[index] = { name: lists[index].name, symbols: symbols }
+  var pins = (pinnedSymbols !== undefined ? pinnedSymbols : (lists[index].pinnedSymbols || []))
+    .filter(function (key) { return symbols.indexOf(key) >= 0 })
+  lists[index] = { name: lists[index].name, symbols: symbols, pinnedSymbols: pins }
   return withLists(config, lists)
+}
+
+// Pinning is group-scoped, the way the macOS app scopes it: the same
+// instrument may sit on several lists and be pinned on one of them.
+function togglePin(config, raw) {
+  var key = canonical(raw)
+  if (!key || activeSymbols(config).indexOf(key) < 0) return config
+  var pins = activePinnedSymbols(config)
+  var at = pins.indexOf(key)
+  if (at >= 0) pins.splice(at, 1)
+  else pins.push(key)
+  return replaceActive(config, activeSymbols(config), pins)
 }
 
 function addSymbol(config, raw) {
@@ -240,7 +272,7 @@ function selectList(config, name) {
 
 function addList(config, name) {
   var created = uniqueName(name, listNames(config), "List " + (config.lists.length + 1))
-  var next = withLists(config, config.lists.concat([{ name: created, symbols: [] }]))
+  var next = withLists(config, config.lists.concat([{ name: created, symbols: [], pinnedSymbols: [] }]))
   next.activeList = created
   return next
 }
@@ -252,7 +284,8 @@ function renameList(config, from, to) {
   taken.splice(index, 1)
   var created = uniqueName(to, taken, from)
   var lists = config.lists.slice()
-  lists[index] = { name: created, symbols: lists[index].symbols }
+  lists[index] = { name: created, symbols: lists[index].symbols,
+                   pinnedSymbols: lists[index].pinnedSymbols || [] }
   var next = withLists(config, lists)
   if (next.activeList === from) next.activeList = created
   return next
@@ -289,6 +322,9 @@ function setValue(config, key, value) {
     case "carouselIntervalSeconds":
       next.carouselIntervalSeconds = clampInt(value, 6, 2, 120)
       break
+    case "prioritizeOpenMarkets":
+      next.prioritizeOpenMarkets = value !== false && value !== "false"
+      break
     default:
       return config
   }
@@ -307,6 +343,9 @@ if (typeof module !== "undefined") module.exports = {
   listIndex: listIndex,
   activeIndex: activeIndex,
   activeSymbols: activeSymbols,
+  activePinnedSymbols: activePinnedSymbols,
+  isPinned: isPinned,
+  togglePin: togglePin,
   listNames: listNames,
   allSymbols: allSymbols,
   contains: contains,

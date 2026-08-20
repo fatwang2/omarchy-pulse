@@ -25,7 +25,7 @@ test("a v1 file becomes one list with the old symbols, canonicalized", () => {
     pollIntervalSeconds: 30
   })
   const config = Config.parse(v1)
-  assert.deepEqual(config.lists, [{ name: "Watching", symbols: ["AAPL", "700.HK"] }])
+  assert.deepEqual(config.lists, [{ name: "Watching", symbols: ["AAPL", "700.HK"], pinnedSymbols: [] }])
   assert.equal(config.barDisplay, "carousel")
   assert.equal(config.pollIntervalSeconds, 30)
   // And it writes back as v2.
@@ -146,4 +146,41 @@ test("setValue clamps and validates the way parse does", () => {
   assert.equal(Config.setValue(config, "pollIntervalSeconds", 1).pollIntervalSeconds, 15)
   assert.equal(Config.setValue(config, "barDisplay", "bogus").barDisplay, "icon")
   assert.equal(Config.setValue(config, "unknownKey", 1), config)
+})
+
+test("a pin is a membership on one list, scoped like the macOS app's", () => {
+  let config = Config.addSymbol(Config.parse(""), "AAPL")
+  config = Config.addSymbol(config, "NVDA")
+  config = Config.togglePin(config, "NVDA")
+  assert.deepEqual(Config.activePinnedSymbols(config), ["NVDA"])
+  assert.equal(Config.isPinned(config, "NVDA"), true)
+  // The same symbol on another list is not pinned there.
+  config = Config.addList(config, "Tech")
+  config = Config.addSymbol(config, "NVDA")
+  assert.equal(Config.isPinned(config, "NVDA"), false)
+  // Toggling again unpins.
+  config = Config.selectList(config, "Watching")
+  config = Config.togglePin(config, "NVDA")
+  assert.deepEqual(Config.activePinnedSymbols(config), [])
+})
+
+test("a pin cannot outlive its symbol's membership", () => {
+  let config = Config.addSymbol(Config.parse(""), "AAPL")
+  config = Config.togglePin(config, "AAPL")
+  config = Config.removeSymbol(config, "AAPL")
+  assert.deepEqual(Config.activePinnedSymbols(config), [])
+  // Pinning something not on the list is refused outright.
+  const before = Config.addSymbol(Config.parse(""), "AAPL")
+  assert.equal(Config.togglePin(before, "NVDA"), before)
+})
+
+test("pins and the schedule toggle round trip", () => {
+  let config = Config.addSymbol(Config.parse(""), "AAPL")
+  config = Config.togglePin(config, "AAPL")
+  config = Config.setValue(config, "prioritizeOpenMarkets", false)
+  const back = Config.parse(Config.serialize(config))
+  assert.deepEqual(Config.activePinnedSymbols(back), ["AAPL"])
+  assert.equal(back.prioritizeOpenMarkets, false)
+  // Absent in an old file means on — the macOS default.
+  assert.equal(Config.parse('{"version":2,"lists":[]}').prioritizeOpenMarkets, true)
 })

@@ -60,10 +60,14 @@ source can actually change.
 
 ## Ordering is the user's
 
-Rows render the active list's order verbatim. "Move up" in a row's
-hover-revealed actions edits the same order the rows display, so nothing
-anywhere may re-sort the list — not by market, not alphabetically, and least
-of all by a value that moves. Membership and order are list operations and
+Display order is the schedule's; the persisted order is the user's. The
+rows normally show `SessionOrder.orderedSymbols` — market blocks led by the
+session trading now, pins atop their own block — and the saved sequence is
+only the tiebreak inside a block. The one rule that keeps this honest: any
+control that edits the sequence must only ever be shown against the raw
+sequence. That is what the reordering pass is — it bypasses the schedule so
+the arrows edit the order the eye sees. Never surface a move control against
+the schedule view. Membership and order are list operations and
 live in the hover-revealed row and tab actions; the quote detail describes
 one instrument and holds no list controls.
 

@@ -25,6 +25,8 @@ QtObject {
   readonly property var listNames: Config.listNames(config)
   readonly property string activeList: config.activeList
   readonly property var activeSymbols: Config.activeSymbols(config)
+  readonly property var activePinnedSymbols: Config.activePinnedSymbols(config)
+  readonly property bool prioritizeOpenMarkets: config.prioritizeOpenMarkets !== false
   readonly property var allSymbols: Config.allSymbols(config)
   readonly property int pollIntervalSeconds: config.pollIntervalSeconds
   readonly property string barDisplay: config.barDisplay
@@ -33,6 +35,7 @@ QtObject {
 
   function canonical(raw) { return Config.canonical(raw) }
   function contains(raw) { return Config.contains(root.config, raw) }
+  function isPinned(raw) { return Config.isPinned(root.config, raw) }
 
   function load(raw) {
     try {
@@ -61,6 +64,7 @@ QtObject {
   function addSymbol(raw) { return apply(Config.addSymbol(root.config, raw)) }
   function removeSymbol(raw) { return apply(Config.removeSymbol(root.config, raw)) }
   function moveSymbol(raw, delta) { return apply(Config.moveSymbol(root.config, raw, delta)) }
+  function togglePin(raw) { return apply(Config.togglePin(root.config, raw)) }
   function selectList(name) { return apply(Config.selectList(root.config, name)) }
   function addList(name) { return apply(Config.addList(root.config, name)) }
   function renameList(from, to) { return apply(Config.renameList(root.config, from, to)) }
