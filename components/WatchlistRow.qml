@@ -139,7 +139,7 @@ Rectangle {
     id: chart
     anchors.left: identity.right
     anchors.leftMargin: Style.space(10)
-    anchors.right: hoverActions.visible ? hoverActions.left : figures.left
+    anchors.right: figures.left
     anchors.rightMargin: Style.space(10)
     anchors.verticalCenter: parent.verticalCenter
     height: Style.space(24)
@@ -149,17 +149,19 @@ Rectangle {
     guideColor: root.textColor
   }
 
-  // List edits, revealed by hover at the row's edge the way the network
-  // panel reveals "forget" — the actions macOS keeps in the row's context
-  // menu, in the shell's own idiom. The chart yields the width; the price
-  // never moves. Manual reordering is deliberately absent: the schedule
-  // orders the rows, and a move control shown against a schedule-ordered
-  // view would edit an order the eye cannot see.
+  // List edits, revealed by hover at the row's right edge — where the
+  // network panel reveals "forget". They take the figures' place while the
+  // pointer is on the row: pointing at a row is the operating posture,
+  // reading its price is the resting one, and the two never happen at once.
+  // The chart is the row's core reading and never moves or shrinks for a
+  // control. Manual reordering is deliberately absent: the schedule orders
+  // the rows, and a move control shown against a schedule-ordered view
+  // would edit an order the eye cannot see.
   Row {
     id: hoverActions
     visible: hover.hovered
-    anchors.right: figures.left
-    anchors.rightMargin: Style.space(2)
+    anchors.right: parent.right
+    anchors.rightMargin: Style.space(4)
     anchors.verticalCenter: parent.verticalCenter
     spacing: 0
 
@@ -181,6 +183,7 @@ Rectangle {
 
   Column {
     id: figures
+    opacity: hover.hovered ? 0 : 1
     anchors.right: parent.right
     anchors.rightMargin: Style.space(9)
     anchors.verticalCenter: parent.verticalCenter
