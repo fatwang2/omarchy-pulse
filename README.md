@@ -2,6 +2,8 @@
 
 **Glanceable market data in the Omarchy bar.**
 
+**Original app:** [Pulse for macOS](https://github.com/fatwang2/Pulse) · **Website:** [www.pulseticker.app](https://www.pulseticker.app/)
+
 A port of [Pulse](https://github.com/fatwang2/Pulse) — the macOS menu-bar
 market watcher — to the Omarchy shell. Same idea, same data model: see how the
 symbols you care about are doing in the shortest possible time, without leaving
@@ -34,8 +36,8 @@ Either way the first install seeds a starter watchlist at
 ## The watchlist
 
 The panel follows the macOS popover: named lists as tabs, the magnifier to
-add, the row itself to inspect, remove or reorder (open its detail), and the
-gear for how the plugin behaves. Everything writes
+add, the pencil to edit — reorder, pin, remove — and the gear for how the
+plugin behaves; a row opens its quote detail. Everything writes
 `~/.config/omarchy/pulse/watchlist.json`, which any text editor can edit too —
 changes from either side land without restarting the shell.
 
@@ -60,17 +62,6 @@ manifest schema is designed for does not exist yet — `barWidget.schema` is
 registered into the widget registry and read by nothing in 4.0.0. When it
 ships, the scalar options can move into it; ordered lists of instruments
 cannot, which is why the panel edits the file.
-
-```json
-{
-  "version": 1,
-  "symbols": ["AAPL", "NVDA", "^GSPC", "00700.HK", "600519.SH", "7203.T", "005930.KS"],
-  "pollIntervalSeconds": 60,
-  "barDisplay": "icon",
-  "pinnedSymbol": "NVDA",
-  "carouselIntervalSeconds": 6
-}
-```
 
 | Key | What it does |
 |---|---|
@@ -114,7 +105,7 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
   it stays the tiebreak inside every block, and **Settings → Order** turns
   the schedule off entirely.
 - The identity column is capped so the session line gets the width. An elided
-  name shows in full after hovering the row for a moment.
+  name shows in full after pointing at it for a moment.
 - Each priced row carries the current session's intraday line. It comes from
   the same Yahoo chart response as the quote, so it adds no request or delay.
 - Both Chinese boards share one `CN` badge and both Korean boards share `KR`;
@@ -124,9 +115,9 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 - `STALE` means a price has stopped arriving **while its market is open**, past
   the source's own delay. A closed market's last print is the close — final,
   not stale — and is never marked.
-- Press `/` (or `f`, `a`) to add a symbol, `r` to refresh, `s` for settings,
-  `1`–`9` to switch lists, `↑`/`↓` to move, `Enter` for the
-  quote detail, `Esc` to back out.
+- Press `/` (or `f`, `a`) to search, `e` to edit, `r` to refresh, `s` for
+  settings, `1`–`9` to switch lists, `↑`/`↓` to move, `Enter` for the quote
+  detail, `Esc` to back out.
 - Lists keep the macOS group bar's functions: "+" becomes an inline name
   field so a list is born with its name, a double click renames a tab in
   place, and hovering a tab reveals its delete.
@@ -207,6 +198,7 @@ omarchy-shell pulse.omarchy lists             # the named lists
 omarchy-shell pulse.omarchy selectList HK     # switch the active tab
 omarchy-shell pulse.omarchy detail AAPL       # open one row's detail
 omarchy-shell pulse.omarchy chartPeriod week  # switch the detail chart
+omarchy-shell pulse.omarchy edit              # toggle edit mode
 ```
 
 `add` and `remove` write the same file the settings view does, so they are also
