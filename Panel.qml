@@ -342,7 +342,11 @@ Panel {
               anchors.verticalCenter: parent.verticalCenter
               width: Style.space(15)
               height: width
-              foregroundColor: root.foreground
+              // The macOS popover draws this mark in the system accent color
+              // (PulseWaveformMark(primaryColor: .accentColor)); the theme's
+              // accent role is that color's name here. The bar icon stays
+              // foreground — that one mirrors the template menu-bar icon.
+              foregroundColor: Color.accent
             }
             Text {
               anchors.verticalCenter: parent.verticalCenter
