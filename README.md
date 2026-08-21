@@ -148,6 +148,8 @@ for it, with the tabs staying live above — results add to the active list,
 and switching lists returns to it. An empty query shows your recent
 searches as chips (kept in the config file, last eight); adding a symbol
 records the query and keeps the page open so several can land in one visit.
+A new symbol joins at the top: first in the list, which under the schedule
+view means the top of its own market block — beneath that block's pins.
 
 Search matches names and tickers through Yahoo's index. A code that names its
 venue — `600519.SH`, `7203.T`, `00700.HK`, `^GSPC` — is resolved locally and

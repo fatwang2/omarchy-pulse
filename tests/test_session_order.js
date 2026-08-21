@@ -54,3 +54,11 @@ test("an empty list is an empty list", () => {
   assert.deepEqual(SessionOrder.orderedSymbols([], [], ASIA_DAY), [])
   assert.deepEqual(SessionOrder.orderedSymbols(null, null, ASIA_DAY), [])
 })
+
+test("a fresh addition tops its market block, beneath the block's pins", () => {
+  // AMD was just added (it leads the saved sequence); NVDA is pinned.
+  const saved = ["AMD", "AAPL", "NVDA", "700.HK"]
+  const ordered = SessionOrder.orderedSymbols(saved, ["NVDA"], US_EVENING)
+  // Pins first, then the newest addition, then the rest in saved order.
+  assert.deepEqual(ordered, ["NVDA", "AMD", "AAPL", "700.HK"])
+})

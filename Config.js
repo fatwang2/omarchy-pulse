@@ -247,7 +247,11 @@ function togglePin(config, raw) {
 function addSymbol(config, raw) {
   var key = canonical(raw)
   if (!key || contains(config, key)) return config
-  return replaceActive(config, activeSymbols(config).concat([key]))
+  // The newest addition leads the list. Under the schedule view the saved
+  // sequence is the tiebreak inside each market block, so a fresh symbol
+  // surfaces at the top of its own market — beneath that block's pins, which
+  // the ordering always emits first.
+  return replaceActive(config, [key].concat(activeSymbols(config)))
 }
 
 function removeSymbol(config, raw) {

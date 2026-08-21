@@ -58,6 +58,14 @@ test("adds land on the active list and nowhere else", () => {
   assert.deepEqual(config.lists[1].symbols, ["700.HK"])
 })
 
+test("the newest addition leads the list", () => {
+  let config = Config.parse("")
+  config = Config.addSymbol(config, "AAPL")
+  config = Config.addSymbol(config, "NVDA")
+  config = Config.addSymbol(config, "TSM")
+  assert.deepEqual(Config.activeSymbols(config), ["TSM", "NVDA", "AAPL"])
+})
+
 test("the same symbol may sit on two lists; the feed sees it once", () => {
   let config = Config.addSymbol(Config.parse(""), "AAPL")
   config = Config.addList(config, "Tech")
@@ -74,11 +82,12 @@ test("a duplicate add on the same list is a no-op returning the same object", ()
 
 test("moves stay inside the list's bounds", () => {
   let config = Config.parse("")
+  // Adds prepend, so the saved order is C, B, A.
   for (const s of ["A", "B", "C"]) config = Config.addSymbol(config, s)
-  assert.equal(Config.moveSymbol(config, "A", -1), config)
-  assert.equal(Config.moveSymbol(config, "C", 1), config)
-  const moved = Config.moveSymbol(config, "C", -1)
-  assert.deepEqual(Config.activeSymbols(moved), ["A", "C", "B"])
+  assert.equal(Config.moveSymbol(config, "C", -1), config)
+  assert.equal(Config.moveSymbol(config, "A", 1), config)
+  const moved = Config.moveSymbol(config, "A", -1)
+  assert.deepEqual(Config.activeSymbols(moved), ["C", "A", "B"])
 })
 
 test("removing a symbol repoints the pin when it named that symbol", () => {
