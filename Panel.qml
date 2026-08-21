@@ -25,7 +25,7 @@ Panel {
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
 
   property bool settingsOpen: false
-  property bool addOpen: false
+  property bool searchOpen: false
   // Edit mode, entered from the header. While on, the schedule order is
   // bypassed so the arrows edit exactly the sequence the rows show — the one
   // rule that makes a move control honest — and the rows grow their reorder,
@@ -67,17 +67,18 @@ Panel {
 
   function closeSubviews() {
     root.settingsOpen = false
-    root.addOpen = false
+    root.searchOpen = false
     root.editMode = false
-    addRow.clear()
+    searchView.clear()
     watchlistView.detailOpen = false
   }
 
-  function openAdd() {
+  function openSearch() {
     root.settingsOpen = false
+    root.editMode = false
     watchlistView.detailOpen = false
-    root.addOpen = true
-    addRow.focusInput()
+    root.searchOpen = true
+    searchView.focusInput()
   }
 
   ThemePalette {
@@ -149,8 +150,8 @@ Panel {
     // Drives the add search without synthetic keystrokes, which is how it gets
     // exercised from a script or a test run.
     function find(query: string): string {
-      root.openAdd()
-      symbolSearch.query = query
+      root.openSearch()
+      searchView.setQuery(query)
       return "searching"
     }
     function results(): string {
@@ -206,7 +207,7 @@ Panel {
         feed: feed.status,
         barDisplay: watchlist.barDisplay,
         settingsOpen: root.settingsOpen,
-        addOpen: root.addOpen,
+        searchOpen: root.searchOpen,
         config: watchlist.configPath,
         configError: watchlist.error
       })
@@ -272,14 +273,14 @@ Panel {
       anchors.fill: parent
       // While a text editor holds focus every key belongs to it, including the
       // panel's own single-letter shortcuts.
-      blocked: root.addOpen || root.settingsOpen || listTabs.editing
+      blocked: root.searchOpen || root.settingsOpen || listTabs.editing
       onMoveRequested: function (dx, dy) { if (dy !== 0) watchlistView.moveSelection(dy) }
       onActivateRequested: {
         if (watchlistView.rows.length > 0) watchlistView.detailOpen = true
       }
       onCloseRequested: {
         if (root.editMode) root.editMode = false
-        else if (root.addOpen) { root.addOpen = false; addRow.clear() }
+        else if (root.searchOpen) { root.searchOpen = false; searchView.clear() }
         else if (root.settingsOpen) root.settingsOpen = false
         else if (watchlistView.detailOpen) watchlistView.detailOpen = false
         else root.close()
@@ -288,10 +289,10 @@ Panel {
       onTextKey: function (text) {
         var key = String(text || "").toLowerCase()
         if (root.editMode) { if (key === "e") root.editMode = false; return }
-        if (key === "/" || key === "f" || key === "a") root.openAdd()
+        if (key === "/" || key === "f" || key === "a") root.openSearch()
         else if (key === "r") feed.refresh()
-        else if (key === "s") { watchlistView.detailOpen = false; root.addOpen = false; root.settingsOpen = true }
-        else if (key === "e" && !watchlistView.detailOpen) { root.addOpen = false; addRow.clear(); root.editMode = true }
+        else if (key === "s") { watchlistView.detailOpen = false; root.searchOpen = false; searchView.clear(); root.settingsOpen = true }
+        else if (key === "e" && !watchlistView.detailOpen) { root.searchOpen = false; searchView.clear(); root.editMode = true }
         else if (key >= "1" && key <= "9") {
           var names = watchlist.listNames
           var index = Number(key) - 1
@@ -369,10 +370,10 @@ Panel {
             PanelActionButton {
               visible: !root.settingsOpen && !watchlistView.detailOpen && !root.editMode
               iconText: "󰍉"
-              tooltipText: "Add symbol (/)"
-              foreground: root.addOpen ? root.foreground : root.muted
+              tooltipText: "Search (/)"
+              foreground: root.searchOpen ? root.foreground : root.muted
               fontFamily: root.fontFamily
-              onClicked: root.addOpen ? (function () { root.addOpen = false; addRow.clear() })() : root.openAdd()
+              onClicked: root.searchOpen ? (function () { root.searchOpen = false; searchView.clear() })() : root.openSearch()
             }
 
             PanelActionButton {
@@ -382,8 +383,8 @@ Panel {
               foreground: root.muted
               fontFamily: root.fontFamily
               onClicked: {
-                root.addOpen = false
-                addRow.clear()
+                root.searchOpen = false
+                searchView.clear()
                 root.editMode = true
               }
             }
@@ -396,24 +397,12 @@ Panel {
               fontFamily: root.fontFamily
               onClicked: {
                 watchlistView.detailOpen = false
-                root.addOpen = false
+                root.searchOpen = false
+                searchView.clear()
                 root.settingsOpen = true
               }
             }
           }
-        }
-
-        // --- Add flow, folded away until the magnifier summons it. ---
-        AddSymbolRow {
-          id: addRow
-          visible: root.addOpen && !root.settingsOpen && !watchlistView.detailOpen
-          width: parent.width
-          watchlist: watchlist
-          search: symbolSearch
-          textColor: root.foreground
-          mutedColor: root.muted
-          panelFontFamily: root.fontFamily
-          onDismissed: root.addOpen = false
         }
 
         // --- Named lists. ---
@@ -428,15 +417,35 @@ Panel {
           textColor: root.foreground
           accentColor: Color.accent
           panelFontFamily: root.fontFamily
-          onSelected: function (name) { watchlist.selectList(name) }
+          onSelected: function (name) {
+            // Switching lists leaves search, the way the macOS group bar does.
+            root.searchOpen = false
+            searchView.clear()
+            watchlist.selectList(name)
+          }
           onCreateRequested: function (name) { watchlist.addList(name) }
           onRenameRequested: function (name, newName) { watchlist.renameList(name, newName) }
           onRemoveRequested: function (name) { watchlist.removeList(name) }
         }
 
+        // The search page, standing in for the watchlist while active — the
+        // macOS swap. The tabs above it stay live: results add to the active
+        // list, and switching lists returns to it.
+        SearchView {
+          id: searchView
+          visible: root.searchOpen && !root.settingsOpen && !watchlistView.detailOpen
+          width: parent.width
+          watchlist: watchlist
+          search: symbolSearch
+          textColor: root.foreground
+          mutedColor: root.muted
+          panelFontFamily: root.fontFamily
+          onDismissed: root.searchOpen = false
+        }
+
         WatchlistView {
           id: watchlistView
-          visible: !detailOpen && !root.settingsOpen
+          visible: !detailOpen && !root.settingsOpen && !root.searchOpen
           width: parent.width
           listName: watchlist.activeList
           pinnedKeys: watchlist.activePinnedSymbols

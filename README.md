@@ -143,6 +143,12 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 
 ## Adding symbols
 
+Search is a page, as on macOS: the magnifier (or `/`) swaps the watchlist
+for it, with the tabs staying live above — results add to the active list,
+and switching lists returns to it. An empty query shows your recent
+searches as chips (kept in the config file, last eight); adding a symbol
+records the query and keeps the page open so several can land in one visit.
+
 Search matches names and tickers through Yahoo's index. A code that names its
 venue — `600519.SH`, `7203.T`, `00700.HK`, `^GSPC` — is resolved locally and
 offered whether or not the index knows it, which matters twice: Yahoo spells

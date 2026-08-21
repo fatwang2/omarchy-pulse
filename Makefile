@@ -1,7 +1,7 @@
 QMLLINT := /usr/lib/qt6/bin/qmllint
 QML_FILES := Panel.qml QuoteFeed.qml Watchlist.qml SymbolSearch.qml CandleStore.qml ThemePalette.qml \
 	components/ListTabs.qml \
-	components/AddSymbolRow.qml \
+	components/SearchView.qml \
 	components/IntradayChart.qml \
 	components/CandleChart.qml \
 	components/PulseLogo.qml \

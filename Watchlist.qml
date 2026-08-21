@@ -26,6 +26,7 @@ QtObject {
   readonly property string activeList: config.activeList
   readonly property var activeSymbols: Config.activeSymbols(config)
   readonly property var activePinnedSymbols: Config.activePinnedSymbols(config)
+  readonly property var recentSearches: config.recentSearches || []
   readonly property bool prioritizeOpenMarkets: config.prioritizeOpenMarkets !== false
   readonly property var allSymbols: Config.allSymbols(config)
   readonly property int pollIntervalSeconds: config.pollIntervalSeconds
@@ -65,6 +66,8 @@ QtObject {
   function removeSymbol(raw) { return apply(Config.removeSymbol(root.config, raw)) }
   function moveSymbol(raw, delta) { return apply(Config.moveSymbol(root.config, raw, delta)) }
   function togglePin(raw) { return apply(Config.togglePin(root.config, raw)) }
+  function recordRecentSearch(query) { return apply(Config.recordRecentSearch(root.config, query)) }
+  function clearRecentSearches() { return apply(Config.clearRecentSearches(root.config)) }
   function selectList(name) { return apply(Config.selectList(root.config, name)) }
   function addList(name) { return apply(Config.addList(root.config, name)) }
   function renameList(from, to) { return apply(Config.renameList(root.config, from, to)) }

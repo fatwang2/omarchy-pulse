@@ -53,12 +53,14 @@ function emptyConfig() {
     barDisplay: "icon",
     pinnedSymbol: "",
     carouselIntervalSeconds: 6,
+    recentSearches: [],
     passthrough: {}
   }
 }
 
 var KNOWN_KEYS = ["version", "lists", "activeList", "symbols", "pollIntervalSeconds",
-                  "prioritizeOpenMarkets", "barDisplay", "pinnedSymbol", "carouselIntervalSeconds"]
+                  "prioritizeOpenMarkets", "barDisplay", "pinnedSymbol", "carouselIntervalSeconds",
+                  "recentSearches"]
 
 // A list name has to survive being a tab label and a lookup key. Empty names
 // and duplicates are the two that break one or the other.
@@ -117,6 +119,15 @@ function parse(raw) {
   config.pinnedSymbol = canonical(parsed.pinnedSymbol)
   config.carouselIntervalSeconds = clampInt(parsed.carouselIntervalSeconds, 6, 2, 120)
 
+  var recents = []
+  var rawRecents = (parsed.recentSearches && typeof parsed.recentSearches.length === "number")
+    ? parsed.recentSearches : []
+  for (var r = 0; r < rawRecents.length && recents.length < 8; r++) {
+    var query = trimmed(rawRecents[r])
+    if (query && recents.indexOf(query) < 0) recents.push(query)
+  }
+  config.recentSearches = recents
+
   // Keys this version does not understand are carried through a write
   // untouched. A newer Pulse's settings must survive being edited by an older
   // one, and silently dropping them is the one failure a user cannot see.
@@ -142,6 +153,7 @@ function serialize(config) {
   payload.barDisplay = config.barDisplay
   payload.pinnedSymbol = config.pinnedSymbol
   payload.carouselIntervalSeconds = config.carouselIntervalSeconds
+  payload.recentSearches = (config.recentSearches || []).slice()
   return JSON.stringify(payload, null, 2) + "\n"
 }
 
@@ -306,6 +318,28 @@ function removeList(config, name) {
   return next
 }
 
+// The macOS recent-searches ring: recording moves a repeat back to the
+// front, and the list holds the last eight. Only queries that produced a
+// visit are recorded — the caller decides what counts.
+function recordRecentSearch(config, query) {
+  var text = trimmed(query)
+  if (!text) return config
+  var next = {}
+  for (var key in config) next[key] = config[key]
+  var recents = (config.recentSearches || []).filter(function (entry) { return entry !== text })
+  recents.unshift(text)
+  next.recentSearches = recents.slice(0, 8)
+  return next
+}
+
+function clearRecentSearches(config) {
+  if (!config.recentSearches || config.recentSearches.length === 0) return config
+  var next = {}
+  for (var key in config) next[key] = config[key]
+  next.recentSearches = []
+  return next
+}
+
 function setValue(config, key, value) {
   var next = {}
   for (var name in config) next[name] = config[name]
@@ -356,5 +390,7 @@ if (typeof module !== "undefined") module.exports = {
   addList: addList,
   renameList: renameList,
   removeList: removeList,
+  recordRecentSearch: recordRecentSearch,
+  clearRecentSearches: clearRecentSearches,
   setValue: setValue
 }

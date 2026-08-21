@@ -184,3 +184,19 @@ test("pins and the schedule toggle round trip", () => {
   // Absent in an old file means on — the macOS default.
   assert.equal(Config.parse('{"version":2,"lists":[]}').prioritizeOpenMarkets, true)
 })
+
+test("recent searches hold the last eight, newest first, repeats refreshed", () => {
+  let config = Config.parse("")
+  for (let i = 1; i <= 9; i++) config = Config.recordRecentSearch(config, "q" + i)
+  assert.equal(config.recentSearches.length, 8)
+  assert.equal(config.recentSearches[0], "q9")
+  assert.equal(config.recentSearches.indexOf("q1"), -1)
+  config = Config.recordRecentSearch(config, "q5")
+  assert.equal(config.recentSearches[0], "q5")
+  assert.equal(config.recentSearches.filter(q => q === "q5").length, 1)
+  // Blank records and clearing.
+  assert.equal(Config.recordRecentSearch(config, "  "), config)
+  assert.deepEqual(Config.clearRecentSearches(config).recentSearches, [])
+  // And they round trip.
+  assert.deepEqual(Config.parse(Config.serialize(config)).recentSearches, config.recentSearches)
+})
