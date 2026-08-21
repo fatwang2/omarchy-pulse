@@ -32,8 +32,12 @@ For development, symlink this checkout into Omarchy instead:
 ./install.sh          # add --no-restart to leave the running shell alone
 ```
 
-Either way the first install seeds a starter watchlist at
-`~/.config/omarchy/pulse/watchlist.json` and never touches it again.
+A fresh install opens with an empty watchlist, the way the macOS app does —
+press `/` and add your first symbol. Everything you add lives in
+`~/.config/omarchy/pulse/watchlist.json`, which the plugin creates on your
+first edit and never overwrites. (The development `install.sh` additionally
+seeds that file with a sample list, so a working checkout has rows to render;
+`omarchy plugin add` runs no plugin scripts and seeds nothing.)
 
 To remove the plugin:
 
