@@ -4,7 +4,7 @@
 
 **Original app:** [Pulse for macOS](https://github.com/fatwang2/Pulse) · **Website:** [www.pulseticker.app](https://www.pulseticker.app/)
 
-<img src="preview.png" alt="Pulse panel in the Omarchy bar" width="360" align="right">
+<img src="preview.png" alt="Pulse panel in the Omarchy bar" width="360">
 
 A port of [Pulse](https://github.com/fatwang2/Pulse) — the macOS menu-bar
 market watcher — to the Omarchy shell. Same idea, same data model: see how the
