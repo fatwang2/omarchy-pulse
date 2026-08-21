@@ -4,6 +4,8 @@
 
 **Original app:** [Pulse for macOS](https://github.com/fatwang2/Pulse) · **Website:** [www.pulseticker.app](https://www.pulseticker.app/)
 
+<img src="preview.png" alt="Pulse panel in the Omarchy bar" width="360" align="right">
+
 A port of [Pulse](https://github.com/fatwang2/Pulse) — the macOS menu-bar
 market watcher — to the Omarchy shell. Same idea, same data model: see how the
 symbols you care about are doing in the shortest possible time, without leaving
@@ -32,6 +34,15 @@ For development, symlink this checkout into Omarchy instead:
 
 Either way the first install seeds a starter watchlist at
 `~/.config/omarchy/pulse/watchlist.json` and never touches it again.
+
+To remove the plugin:
+
+```bash
+omarchy plugin remove pulse.omarchy
+```
+
+Your watchlist file stays behind; delete `~/.config/omarchy/pulse/` if you
+want that gone too.
 
 ## The watchlist
 
