@@ -347,13 +347,13 @@ Panel {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: parent.inSubview
-textFormat: Text.PlainText
                 ? (root.editMode
                     ? "Edit " + watchlist.activeList
                     : (root.settingsOpen
                         ? "Settings"
                         : (watchlistView.selectedRow ? watchlistView.selectedRow.displayCode : "")))
                 : "Pulse"
+              textFormat: Text.PlainText
               color: root.foreground
               font.family: root.fontFamily
               font.pixelSize: Style.font.subtitle

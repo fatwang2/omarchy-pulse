@@ -46,6 +46,12 @@ for (const file of files) {
       if (!DYNAMIC.test(expression)) continue
       assert.ok(/textFormat:\s*Text\.PlainText/.test(own),
         `Text with dynamic binding lacks textFormat: Text.PlainText — text: ${expression.trim()}`)
+      // A textFormat line jammed inside a multiline binding truncates the
+      // expression — the header once rendered "true" this way. The line
+      // after textFormat must start a new property, never a continuation.
+      const jammed = own.match(/textFormat:\s*Text\.PlainText\s*\n\s*[?:.]/)
+      assert.ok(!jammed,
+        `textFormat splits a multiline binding — text: ${expression.trim()}`)
     }
   })
 }
