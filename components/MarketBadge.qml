@@ -22,6 +22,7 @@ Rectangle {
     id: text
     anchors.centerIn: parent
     text: root.label
+textFormat: Text.PlainText
     color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.55)
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.caption

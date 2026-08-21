@@ -81,6 +81,7 @@ Column {
       anchors.left: parent.left
       anchors.verticalCenter: parent.verticalCenter
       text: parent.label
+textFormat: Text.PlainText
       color: root.mutedColor
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.caption
@@ -89,6 +90,7 @@ Column {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       text: parent.value
+textFormat: Text.PlainText
       color: parent.valueColor
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.bodySmall
@@ -109,6 +111,7 @@ Column {
 
       Text {
         text: root.row ? root.row.displayCode : ""
+textFormat: Text.PlainText
         color: root.textColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.subtitle
@@ -116,6 +119,7 @@ Column {
       }
       Text {
         text: (root.row && root.row.name) ? String(root.row.name).toUpperCase() : "—"
+textFormat: Text.PlainText
         color: root.mutedColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption
@@ -130,6 +134,7 @@ Column {
       Text {
         anchors.right: parent.right
         text: root.hasQuote ? Model.formatPrice(root.quote.price) : "—"
+textFormat: Text.PlainText
         color: root.textColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.subtitle
@@ -140,6 +145,7 @@ Column {
         text: root.hasQuote
           ? (Model.formatChange(root.row.change) + "  " + Model.formatPercent(root.row.changePercent))
           : "—"
+        textFormat: Text.PlainText
         color: root.movementColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption

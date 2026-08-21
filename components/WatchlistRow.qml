@@ -89,6 +89,7 @@ Rectangle {
         id: nameText
         width: Math.min(implicitWidth, parent.width - (pinMark.visible ? Style.space(14) : 0))
         text: root.primaryName
+textFormat: Text.PlainText
         color: root.textColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
@@ -101,7 +102,7 @@ Rectangle {
         // the tooltip answers. And only when it actually elided: repeating
         // what the row shows is noise on every hover.
         HoverHandler { id: nameHover }
-        PanelToolTip {
+        PlainToolTip {
           visible: nameHover.hovered && root.nameElided
           text: root.primaryName
         }
@@ -136,6 +137,7 @@ Rectangle {
         // The code identifies; the name above may be missing or elided, and
         // an error takes this slot because it is what there is to say.
         text: root.row.error ? root.row.error : root.row.displayCode
+textFormat: Text.PlainText
         color: root.mutedColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption
@@ -198,7 +200,7 @@ Rectangle {
     }
     PanelActionButton {
       iconText: "󰩺"
-      tooltipText: root.listName ? "Remove from " + root.listName : "Remove"
+      tooltipText: "Remove from this list"
       foreground: root.mutedColor
       fontFamily: root.panelFontFamily
       onClicked: root.removeRequested()
@@ -223,6 +225,7 @@ Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         visible: root.sessionLabel !== ""
         text: root.sessionLabel
+textFormat: Text.PlainText
         color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.45)
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption
@@ -231,6 +234,7 @@ Rectangle {
       Text {
         anchors.verticalCenter: parent.verticalCenter
         text: root.hasQuote ? Model.formatPrice(root.quote.price) : "—"
+textFormat: Text.PlainText
         color: root.textColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.bodySmall
@@ -257,6 +261,7 @@ Rectangle {
       Text {
         anchors.verticalCenter: parent.verticalCenter
         text: root.hasQuote ? Model.formatPercent(root.row.changePercent) : "—"
+textFormat: Text.PlainText
         color: root.movementColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption

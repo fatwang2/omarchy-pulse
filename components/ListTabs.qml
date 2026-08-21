@@ -95,6 +95,7 @@ Item {
               id: tabLabel
               anchors.verticalCenter: parent.verticalCenter
               text: tab.modelData
+  textFormat: Text.PlainText
               color: tab.active
                 ? root.textColor
                 : Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.55)

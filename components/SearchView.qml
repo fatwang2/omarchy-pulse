@@ -112,6 +112,7 @@ Column {
             id: chipLabel
             anchors.centerIn: parent
             text: chip.modelData
+textFormat: Text.PlainText
             color: root.textColor
             font.family: root.panelFontFamily
             font.pixelSize: Style.font.caption
@@ -137,6 +138,7 @@ Column {
     width: parent.width
     visible: !root.queryEmpty && (root.search.searching || root.search.message !== "")
     text: root.search.searching ? "Searching…" : root.search.message
+textFormat: Text.PlainText
     color: root.mutedColor
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.caption
@@ -190,6 +192,7 @@ Column {
           Text {
             anchors.verticalCenter: parent.verticalCenter
             text: resultRow.modelData.displayCode
+textFormat: Text.PlainText
             color: root.textColor
             font.family: root.panelFontFamily
             font.pixelSize: Style.font.bodySmall
@@ -205,6 +208,7 @@ Column {
             anchors.verticalCenter: parent.verticalCenter
             width: Math.max(0, resultRow.width - Style.space(170))
             text: resultRow.modelData.name ? String(resultRow.modelData.name) : "Add by code"
+textFormat: Text.PlainText
             color: root.mutedColor
             font.family: root.panelFontFamily
             font.pixelSize: Style.font.caption
@@ -220,6 +224,7 @@ Column {
           anchors.rightMargin: Style.space(8)
           anchors.verticalCenter: parent.verticalCenter
           text: resultRow.alreadyAdded ? "ON LIST" : "+"
+textFormat: Text.PlainText
           color: resultRow.alreadyAdded ? root.mutedColor : root.textColor
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.caption

@@ -347,6 +347,7 @@ Panel {
             Text {
               anchors.verticalCenter: parent.verticalCenter
               text: parent.inSubview
+textFormat: Text.PlainText
                 ? (root.editMode
                     ? "Edit " + watchlist.activeList
                     : (root.settingsOpen

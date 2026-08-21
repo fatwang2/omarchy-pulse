@@ -149,6 +149,7 @@ Column {
 
         Text {
           text: sourceRow.name
+textFormat: Text.PlainText
           color: root.textColor
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.bodySmall
@@ -156,6 +157,7 @@ Column {
         Text {
           width: parent.width
           text: sourceRow.detail
+textFormat: Text.PlainText
           color: root.mutedColor
           font.family: root.panelFontFamily
           font.pixelSize: Style.font.caption
@@ -169,6 +171,7 @@ Column {
         anchors.rightMargin: Style.space(6)
         anchors.verticalCenter: parent.verticalCenter
         text: sourceRow.wired ? "ACTIVE" : "PLANNED"
+textFormat: Text.PlainText
         color: root.mutedColor
         font.family: root.panelFontFamily
         font.pixelSize: Style.font.caption
@@ -197,6 +200,7 @@ Column {
   Text {
     width: parent.width
     text: "Saved to " + root.watchlist.configPath
+textFormat: Text.PlainText
     color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.35)
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.caption

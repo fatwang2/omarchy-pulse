@@ -95,6 +95,7 @@ Canvas {
     anchors.centerIn: parent
     visible: !root.hasCandles
     text: root.loading ? "Loading…" : "No history"
+textFormat: Text.PlainText
     color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.45)
     font.pixelSize: Style.font.caption
   }

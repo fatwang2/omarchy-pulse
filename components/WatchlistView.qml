@@ -56,6 +56,7 @@ Column {
     width: parent.width
     visible: root.message !== ""
     text: root.message
+textFormat: Text.PlainText
     color: root.mutedColor
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.caption
@@ -133,6 +134,7 @@ Column {
       anchors.right: parent.right
       anchors.verticalCenter: parent.verticalCenter
       text: root.rows.length + (root.rows.length === 1 ? " symbol" : " symbols")
+textFormat: Text.PlainText
       color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, 0.35)
       font.family: root.panelFontFamily
       font.pixelSize: Style.font.caption

@@ -42,6 +42,7 @@ Row {
   Text {
     anchors.verticalCenter: parent.verticalCenter
     text: root.live ? "LIVE" : (root.loading ? "LOADING" : (root.failed ? "OFFLINE" : "IDLE"))
+textFormat: Text.PlainText
     color: Qt.rgba(root.textColor.r, root.textColor.g, root.textColor.b, root.live ? 0.70 : 0.45)
     font.family: root.panelFontFamily
     font.pixelSize: Style.font.caption
