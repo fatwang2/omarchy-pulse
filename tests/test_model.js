@@ -152,3 +152,38 @@ test("the regular session's own change is measured against its own reference", (
   assert.equal(Model.regularSessionChangePercent(q), 2)
   assert.equal(Model.regularSessionChangePercent(quote("AAPL")), null)
 })
+
+test("a late answer from a delayed source never rolls a live price back", () => {
+  let state = Model.applySymbols(Model.initialState(), ["2330.TW"])
+  state = Model.applyQuote(state, quote("2330.TW", { price: 2505, sourceID: "twse", timestampMs: 2000 }))
+  const line = { points: [1, 2], min: 1, max: 2 }
+  state = Model.applyQuote(state, quote("2330.TW", { price: 2500, sourceID: "yahoo", timestampMs: 1000, series: line }))
+  assert.equal(state.quotes["2330.TW"].price, 2505)
+  assert.equal(state.quotes["2330.TW"].sourceID, "twse")
+  // ...but it still brings the intraday line the live source cannot draw.
+  assert.equal(state.quotes["2330.TW"].series, line)
+})
+
+test("a source without a series keeps the line another source drew", () => {
+  let state = Model.applySymbols(Model.initialState(), ["2330.TW"])
+  const line = { points: [1, 2], min: 1, max: 2 }
+  state = Model.applyQuote(state, quote("2330.TW", { sourceID: "yahoo", timestampMs: 1000, series: line }))
+  state = Model.applyQuote(state, quote("2330.TW", { price: 2510, sourceID: "twse", timestampMs: 2000 }))
+  assert.equal(state.quotes["2330.TW"].price, 2510)
+  assert.equal(state.quotes["2330.TW"].series, line)
+})
+
+test("a source that says it has no series yet is believed", () => {
+  // Yahoo sends series: null at a fresh open; yesterday's line must not stay.
+  let state = Model.applySymbols(Model.initialState(), ["700.HK"])
+  state = Model.applyQuote(state, quote("700.HK", { sourceID: "yahoo", timestampMs: 1000, series: { points: [1, 2] } }))
+  state = Model.applyQuote(state, quote("700.HK", { sourceID: "yahoo", timestampMs: 2000, series: null }))
+  assert.equal(state.quotes["700.HK"].series, null)
+})
+
+test("one source's own older answer still replaces its previous one", () => {
+  let state = Model.applySymbols(Model.initialState(), ["AAPL"])
+  state = Model.applyQuote(state, quote("AAPL", { price: 10, sourceID: "yahoo", timestampMs: 2000 }))
+  state = Model.applyQuote(state, quote("AAPL", { price: 9, sourceID: "yahoo", timestampMs: 1000 }))
+  assert.equal(state.quotes.AAPL.price, 9)
+})

@@ -189,3 +189,18 @@ test("no candles is null, not an empty chart", () => {
   assert.equal(Yahoo.parseCandles({}), null)
   assert.equal(Yahoo.parseCandles({ chart: { result: [{ timestamp: [], meta: {}, indicators: { quote: [{}] } }] } }), null)
 })
+
+test("Taiwan uses Yahoo's .TW and .TWO, both ways, twenty minutes late", () => {
+  assert.equal(Yahoo.wireSymbol(SymbolID.parse("2330.TW")), "2330.TW")
+  assert.equal(Yahoo.wireSymbol(SymbolID.parse("6488.TWO")), "6488.TWO")
+  assert.equal(Yahoo.wireSymbol(SymbolID.parse("TAIEX.TW")), "^TWII")
+  // Yahoo has no ^TWOII; the TPEx index is its IX0043.TWO.
+  assert.equal(Yahoo.wireSymbol(SymbolID.parse("TPEX.TWO")), "IX0043.TWO")
+  assert.equal(SymbolID.toString(Yahoo.symbolFromWire("2330.TW")), "2330.TW")
+  assert.equal(SymbolID.toString(Yahoo.symbolFromWire("00679B.TWO")), "00679B.TWO")
+  assert.equal(SymbolID.toString(Yahoo.symbolFromWire("^TWII")), "TAIEX.TW")
+  assert.equal(SymbolID.toString(Yahoo.symbolFromWire("IX0043.TWO")), "TPEX.TWO")
+  assert.equal(Yahoo.DELAY.tw, 1200)
+  assert.equal(Yahoo.DELAY.two, 1200)
+  assert.equal(Yahoo.requestFor(SymbolID.parse("2330.TW")).extended, false)
+})

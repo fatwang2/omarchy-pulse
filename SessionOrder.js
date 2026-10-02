@@ -12,13 +12,14 @@
 
 // Presentation blocks. Shanghai and Shenzhen share one China A block so
 // A-shares never interleave with other markets; both Korean boards share one
-// the same way.
+// the same way, and so do both Taiwanese boards.
 var BLOCKS = {
   sh: "chinaA", sz: "chinaA",
   hk: "hk",
   us: "us",
   jp: "jp",
   kr: "korea", kq: "korea",
+  tw: "taiwan", two: "taiwan",
   metal: "metal", metalCN: "metal",
   crypto: "crypto"
 }
@@ -27,10 +28,11 @@ var BLOCKS = {
 // no window can promote them; they stay after the session-bound blocks.
 // Tokyo and Seoul open at 08:00 Beijing, ahead of both Chinese markets, but
 // they sit behind them here: opening first does not make them the block a
-// Pulse user is watching.
+// Pulse user is watching. Taiwan follows Korea, where Pulse for macOS 0.15.10
+// puts it.
 var BLOCK_ORDER = {
-  asiaDay: ["hk", "chinaA", "jp", "korea", "us", "metal", "crypto"],
-  usEvening: ["us", "hk", "chinaA", "jp", "korea", "metal", "crypto"]
+  asiaDay: ["hk", "chinaA", "jp", "korea", "taiwan", "us", "metal", "crypto"],
+  usEvening: ["us", "hk", "chinaA", "jp", "korea", "taiwan", "metal", "crypto"]
 }
 
 // 08:00..<17:00 Asia/Shanghai is the Asian trading day; everything else leads

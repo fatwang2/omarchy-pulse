@@ -1,11 +1,12 @@
 // Yahoo Finance v8 chart (unofficial API), ported from PulseCore's
 // `YahooProvider.swift`.
 //
-// One source covering US, HK, Shanghai, Shenzhen, Tokyo, both Korean boards and
-// the COMEX/NYMEX metal contracts. Crypto is deliberately absent: Binance is the
-// sole source of truth for pairs, and Yahoo's spot metal symbols have never
-// worked, so `XAU`/`XAG` are refused here rather than quietly priced off a
-// futures contract that is not what the row asks for.
+// One source covering US, HK, Shanghai, Shenzhen, Tokyo, both Korean boards,
+// both Taiwanese boards and the COMEX/NYMEX metal contracts. Crypto is
+// deliberately absent: Binance is the sole source of truth for pairs, and
+// Yahoo's spot metal symbols have never worked, so `XAU`/`XAG` are refused here
+// rather than quietly priced off a futures contract that is not what the row
+// asks for.
 
 .import "SymbolID.js" as SymbolID
 
@@ -15,12 +16,13 @@ var BASE = "https://query1.finance.yahoo.com/v8/finance/chart/"
 
 // Per-market delay in seconds, as published or measured. Zero means the tape.
 // Seoul measures ~21 minutes behind and Tokyo is licensed the same way; both
-// round to the 20 minutes Yahoo states.
+// round to the 20 minutes Yahoo states. Taipei is the same 20 minutes, which
+// is what Pulse for macOS labels a Yahoo-sourced Taiwanese quote.
 var DELAY = {
-  us: 0, hk: 900, sh: 900, sz: 900, jp: 1200, kr: 1200, kq: 1200, metal: 600
+  us: 0, hk: 900, sh: 900, sz: 900, jp: 1200, kr: 1200, kq: 1200, tw: 1200, two: 1200, metal: 600
 }
 
-var MARKETS = ["us", "hk", "sh", "sz", "jp", "kr", "kq", "metal"]
+var MARKETS = ["us", "hk", "sh", "sz", "jp", "kr", "kq", "tw", "two", "metal"]
 
 // Yahoo rate-limits hard per IP. One symbol per request, a second apart, and a
 // 60-second cadence — liveliness is not this source's job.
@@ -34,15 +36,20 @@ var DESCRIPTOR = {
   suggestedPollIntervalMs: 60000
 }
 
+// The TPEx index is the one Yahoo does not spell with a caret: `^TWOII` is a
+// 404, and Yahoo lists it as IX0043.TWO. That symbol carries today's intraday
+// bars but no daily history: its candles are today's one bar, and the candle
+// chart, which needs two, says "No history".
 var INDEX_WIRE = {
   sp500: "^GSPC", nasdaqComposite: "^IXIC", dowJonesIndustrial: "^DJI",
   nasdaq100: "^NDX", vix: "^VIX", russell1000: "^RUI", russell2000: "^RUT",
   hangSeng: "^HSI", hangSengTech: "^HSTECH",
   shanghaiComposite: "000001.SS", shenzhenComponent: "399001.SZ", chiNext: "399006.SZ",
-  nikkei225: "^N225", kospi: "^KS11"
+  nikkei225: "^N225", kospi: "^KS11",
+  taiex: "^TWII", tpex: "IX0043.TWO"
 }
 
-var SUFFIX = { hk: ".HK", sh: ".SS", sz: ".SZ", jp: ".T", kr: ".KS", kq: ".KQ" }
+var SUFFIX = { hk: ".HK", sh: ".SS", sz: ".SZ", jp: ".T", kr: ".KS", kq: ".KQ", tw: ".TW", two: ".TWO" }
 
 function padded(code, width) {
   var value = String(code)
@@ -99,7 +106,8 @@ function symbolFromWire(raw) {
   if (metal) return SymbolID.create(SymbolID.METALS[metal].market, SymbolID.METALS[metal].code)
 
   var suffixes = [[".HK", "hk", 3], [".SS", "sh", 3], [".SZ", "sz", 3],
-                  [".T", "jp", 2], [".KS", "kr", 3], [".KQ", "kq", 3]]
+                  [".T", "jp", 2], [".KS", "kr", 3], [".KQ", "kq", 3],
+                  [".TWO", "two", 4], [".TW", "tw", 3]]
   for (var i = 0; i < suffixes.length; i++) {
     var suffix = suffixes[i]
     if (upper.length > suffix[2] && upper.slice(-suffix[2]) === suffix[0]) {

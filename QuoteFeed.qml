@@ -3,6 +3,7 @@ import Quickshell
 import "SymbolID.js" as SymbolID
 import "Market.js" as Market
 import "YahooAdapter.js" as Yahoo
+import "TWSEAdapter.js" as TWSE
 
 // The quote engine.
 //
@@ -16,6 +17,12 @@ import "YahooAdapter.js" as Yahoo
 // rows that can. The first pass after the panel opens is exempt: an empty row
 // has to be filled once before session logic can decide it is not worth
 // refilling.
+//
+// Taiwanese rows ride two lanes. Yahoo's queue quotes them like any other
+// market — that is their intraday line and their price whenever the exchange
+// has none — and a second, batched lane asks TWSE for them in batches of up to
+// fifty, at least three seconds apart. The panel's model merges the
+// two, so the live price wins without the delayed one ever rolling it back.
 QtObject {
   id: root
 
@@ -37,30 +44,34 @@ QtObject {
   property var _queue: []
   property bool _draining: false
   property var _seeded: ({})
+  property var _twseQueue: []
+  property bool _twseDraining: false
+  property var _twseSeeded: ({})
 
   function _key(symbol) { return SymbolID.toString(symbol) }
 
   // Whether this row is worth a request now. A symbol that has never been
-  // fetched in this session always is.
-  function _shouldFetch(parsed, nowMs) {
-    if (!Yahoo.supports(parsed)) return false
-    if (!root._seeded[_key(parsed)]) return true
+  // fetched by this lane in this session always is.
+  function _shouldFetch(parsed, nowMs, seeded) {
+    if (!seeded[_key(parsed)]) return true
     return Market.isOpen(parsed.market, nowMs)
   }
 
   function _enqueue(force) {
     var nowMs = Date.now()
     var queue = []
+    var twse = []
     for (var i = 0; i < root.symbols.length; i++) {
       var parsed = SymbolID.parse(root.symbols[i])
       if (!parsed) continue
-      if (!force && !root._shouldFetch(parsed, nowMs)) continue
-      if (!Yahoo.supports(parsed)) continue
-      queue.push(parsed)
+      if (Yahoo.supports(parsed) && (force || root._shouldFetch(parsed, nowMs, root._seeded))) queue.push(parsed)
+      if (TWSE.supports(parsed) && (force || root._shouldFetch(parsed, nowMs, root._twseSeeded))) twse.push(parsed)
     }
     root._queue = queue
+    root._twseQueue = TWSE.batches(twse)
     if (queue.length > 0 && root.status !== "live") root.status = "loading"
     root._drain()
+    root._drainTwse()
   }
 
   function _drain() {
@@ -126,6 +137,52 @@ QtObject {
     xhr.send()
   }
 
+  function _drainTwse() {
+    if (root._twseDraining || !root.active || root._twseQueue.length === 0) return
+    if (twseSpacing.running) return
+    root._twseDraining = true
+    root._requestTwse(root._twseQueue.shift())
+  }
+
+  function _finishTwse() {
+    root._twseDraining = false
+    twseSpacing.restart()
+  }
+
+  // A miss on this lane is not a failure. Yahoo quotes every Taiwanese row
+  // too, and whether a row shows an error is that lane's call; this one only
+  // ever improves a price. A miss is seeded all the same, so a row the exchange
+  // never prices is not asked again every poll after the close.
+  function _requestTwse(batch) {
+    var spec = TWSE.requestFor(batch)
+    if (!spec) { root._finishTwse(); return }
+
+    var xhr = new XMLHttpRequest()
+    xhr.open("GET", spec.url)
+    xhr.timeout = 10000
+    xhr.setRequestHeader("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) Pulse/0.1 (+https://www.pulseticker.app)")
+    xhr.setRequestHeader("Accept", "application/json")
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== XMLHttpRequest.DONE) return
+      if (xhr.status >= 200 && xhr.status < 300) {
+        var quotes = []
+        try {
+          quotes = TWSE.parseQuotes(batch, JSON.parse(xhr.responseText), Date.now())
+        } catch (e) {
+          quotes = []
+        }
+        for (var j = 0; j < batch.length; j++) root._twseSeeded[root._key(batch[j])] = true
+        for (var i = 0; i < quotes.length; i++) {
+          root.completed = root.completed + 1
+          root.lastCompletedMs = Date.now()
+          root.quoteReceived(quotes[i])
+        }
+      }
+      root._finishTwse()
+    }
+    xhr.send()
+  }
+
   function refresh() {
     root.completed = 0
     root.failed = 0
@@ -141,6 +198,15 @@ QtObject {
     onTriggered: root._drain()
   }
 
+  // TWSE's own pacing, independent of Yahoo's: the two hosts have separate
+  // limits, and one lane waiting must not hold up the other.
+  property Timer twseSpacing: Timer {
+    id: twseSpacing
+    interval: TWSE.DESCRIPTOR.rateLimit.minIntervalMs
+    repeat: false
+    onTriggered: root._drainTwse()
+  }
+
   property Timer poll: Timer {
     interval: Math.max(15, root.pollIntervalSeconds) * 1000
     repeat: true
@@ -150,7 +216,10 @@ QtObject {
 
   onActiveChanged: {
     if (root.active) root._enqueue(false)
-    else root._queue = []
+    else {
+      root._queue = []
+      root._twseQueue = []
+    }
   }
 
   onSymbolsChanged: {

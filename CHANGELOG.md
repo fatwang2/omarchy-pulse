@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Taiwan: TWSE and TPEx stocks and ETFs (`2330.TW`, `6488.TWO`) in TWD, the
+  TAIEX (`^TWII`) and the TPEx index (Yahoo's `IX0043.TWO`), with one `TW` badge
+  for both boards, aligned with Pulse for macOS 0.15.10. Prices come live from
+  TWSE Market Info in batches three seconds apart; Yahoo stays underneath for
+  the charts and for any row the exchange has no price for. Search finds
+  Taiwanese listings by code and by Chinese name, warrants excluded, from the
+  two exchanges' daily open-data listings rather than MIS's name index, which
+  rejects names such as 元大 and times out on broad ones such as 富邦. In the
+  schedule order, Taiwan's block follows Korea's.
+
+### Changed
+- When two sources quote one row, an older answer from one never replaces a
+  newer price from the other.
+
 ## v0.1.1 — 2026-08-25
 
 The marketplace review's finding, the regression fixing it caused, and the

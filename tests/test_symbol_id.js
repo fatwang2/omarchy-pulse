@@ -66,3 +66,35 @@ test("currency follows the market, and the quote asset for crypto", () => {
   assert.equal(SymbolID.currencyCode(SymbolID.parse("005930.KS")), "KRW")
   assert.equal(SymbolID.currencyCode(SymbolID.parse("600519.SH")), "CNY")
 })
+
+test("Taiwanese codes round trip on both boards", () => {
+  for (const raw of ["2330.TW", "0050.TW", "1101B.TW", "006208.TW", "2887Z1.TW", "6488.TWO", "00679B.TWO"]) {
+    assert.equal(SymbolID.toString(SymbolID.parse(raw)), raw, raw)
+  }
+  assert.equal(SymbolID.parse("2330.TW").market, "tw")
+  assert.equal(SymbolID.parse("6488.TWO").market, "two")
+  assert.equal(SymbolID.toString(SymbolID.parse("00679b.two")), "00679B.TWO")
+  assert.equal(SymbolID.currencyCode(SymbolID.parse("2330.TW")), "TWD")
+})
+
+test("a Taiwanese code must have an exchange's shape", () => {
+  for (const raw of ["233.TW", "2330AB.TW", "ABCD.TW", "1234567.TWO"]) {
+    assert.equal(SymbolID.parse(raw), null, raw)
+  }
+})
+
+test("TAIEX and the TPEx index resolve from every spelling", () => {
+  for (const raw of ["^TWII", "TWII", "TAIEX", "TAIEX.TW"]) {
+    const symbol = SymbolID.parse(raw)
+    assert.equal(symbol.kind, SymbolID.KIND_INDEX, raw)
+    assert.equal(symbol.id, "taiex", raw)
+    assert.equal(symbol.market, "tw", raw)
+  }
+  for (const raw of ["^TWOII", "TWOII", "TPEX", "TPEX.TWO", "IX0043.TWO"]) {
+    const symbol = SymbolID.parse(raw)
+    assert.equal(symbol.id, "tpex", raw)
+    assert.equal(symbol.market, "two", raw)
+  }
+  assert.equal(SymbolID.toString(SymbolID.parse("^TWII")), "TAIEX.TW")
+  assert.equal(SymbolID.toString(SymbolID.parse("^TWOII")), "TPEX.TWO")
+})

@@ -1,0 +1,10 @@
+[
+  {"Date": "1151001", "Code": "2330", "Name": "台積電", "ClosingPrice": "2510.00"},
+  {"Date": "1151001", "Code": "0050", "Name": "元大台灣50", "ClosingPrice": "112.90"},
+  {"Date": "1151001", "Code": "00631L", "Name": "元大台灣50正2", "ClosingPrice": "39.62"},
+  {"Date": "1151001", "Code": "006208", "Name": "富邦台50", "ClosingPrice": "258.25"},
+  {"Date": "1151001", "Code": "03002T", "Name": "台積電群益5A售12", "ClosingPrice": "0.52"},
+  {"Date": "1151001", "Code": "2301", "Name": " 光寶科 ", "ClosingPrice": "284.50"},
+  {"Date": "1151001", "Code": "1101B", "Name": "台泥乙特", "ClosingPrice": "43.50"},
+  {"Date": "1151001", "Code": "", "Name": "no code"}
+]

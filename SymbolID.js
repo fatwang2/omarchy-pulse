@@ -29,7 +29,9 @@ var INDEXES = {
   shenzhenComponent:   { market: "sz", code: "399001" },
   chiNext:             { market: "sz", code: "399006" },
   nikkei225:           { market: "jp", code: "N225" },
-  kospi:               { market: "kr", code: "KOSPI" }
+  kospi:               { market: "kr", code: "KOSPI" },
+  taiex:               { market: "tw", code: "TAIEX" },
+  tpex:                { market: "two", code: "TPEX" }
 }
 
 // Metal identities. `spot` instruments are the ones a person means by "gold";
@@ -68,7 +70,9 @@ var INDEX_ALIASES = {
   shenzhenComponent:  ["399001"],
   chiNext:            ["399006"],
   nikkei225:          ["N225", "NKY"],
-  kospi:              ["KOSPI", "KS11"]
+  kospi:              ["KOSPI", "KS11"],
+  taiex:              ["TAIEX", "TWII"],
+  tpex:               ["TPEX", "TWOII", "IX0043"]
 }
 
 // A market suffix already consumed by `parse` may still be present when a code
@@ -77,7 +81,7 @@ function bareIndexCode(code) {
   return String(code || "")
     .replace(/^\s+|\s+$/g, "")
     .toUpperCase()
-    .replace(/\.(US|HK|SH|SS|SZ|T|KS|KQ)$/, "")
+    .replace(/\.(US|HK|SH|SS|SZ|T|KS|KQ|TW|TWO)$/, "")
     .replace(/^[\^.]/, "")
 }
 
@@ -125,6 +129,11 @@ var CODE_PATTERNS = {
   jp: /^[0-9][0-9A-Z]{3}$/,
   kr: /^\d{6}$/,
   kq: /^\d{6}$/,
+  // Taiwanese stocks are four digits; preferred shares add a letter (1101B),
+  // ETFs run to five or six digits with an optional letter (00679B, 006208),
+  // and one listing is 2887Z1. Taken from both boards' published lists.
+  tw: /^(?:\d{4,6}[A-Z]?|\d{4}[A-Z]\d)$/,
+  two: /^(?:\d{4,6}[A-Z]?|\d{4}[A-Z]\d)$/,
   metal: /^[A-Z0-9]{1,8}$/,
   metalCN: /^[A-Z0-9]{1,8}$/
 }
@@ -198,12 +207,14 @@ function toString(symbol) {
     case "jp": return base + ".T"
     case "kr": return base + ".KS"
     case "kq": return base + ".KQ"
+    case "tw": return base + ".TW"
+    case "two": return base + ".TWO"
     case "crypto": return displayCode(symbol)
     default: return base
   }
 }
 
-var SUFFIX_MARKETS = { HK: "hk", SH: "sh", SS: "sh", SZ: "sz", T: "jp", KS: "kr", KQ: "kq" }
+var SUFFIX_MARKETS = { HK: "hk", SH: "sh", SS: "sh", SZ: "sz", T: "jp", KS: "kr", KQ: "kq", TW: "tw", TWO: "two" }
 
 // Parses the canonical form back into an identity. A code with no suffix is a
 // US ticker, which is the one market whose symbols carry no venue marker.

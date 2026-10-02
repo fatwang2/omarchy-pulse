@@ -99,7 +99,8 @@ suffix, and no suffix for the US.
 | Shanghai / Shenzhen | `.SH` / `.SZ` | `600519.SH`, `300750.SZ` |
 | Tokyo | `.T` | `7203.T` |
 | Korea | `.KS` (KOSPI) / `.KQ` (KOSDAQ) | `005930.KS`, `035720.KQ` |
-| Indices | semantic code or a vendor spelling | `^GSPC`, `SPX`, `INX`, `^HSI`, `N225` |
+| Taiwan | `.TW` (TWSE) / `.TWO` (TPEx) | `2330.TW`, `6488.TWO` |
+| Indices | semantic code or a vendor spelling | `^GSPC`, `SPX`, `INX`, `^HSI`, `N225`, `TAIEX.TW` / `^TWII`, `TPEX.TWO` / `IX0043.TWO` |
 | Metals | contract code | `GC`, `SI`, `PL`, `PA` |
 
 The Korean board is part of the address and cannot be derived from the code —
@@ -113,7 +114,7 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
 
 - Rows follow the schedule, the way the macOS app orders them: markets group
   into blocks and the session trading now leads — Asia through the Beijing
-  day (HK, China A, Japan, Korea, US), the US after 17:00 Beijing — with
+  day (HK, China A, Japan, Korea, Taiwan, US), the US after 17:00 Beijing — with
   metals and crypto, which never close, always behind the session-bound
   blocks. Pinning a row (edit mode → pin) raises it to the top of its own
   market block, not the top of the list. Your saved order is never touched;
@@ -123,8 +124,9 @@ quote, so a typo shows up as a missing row, not a permanently blank one.
   name shows in full after pointing at it for a moment.
 - Each priced row carries the current session's intraday line. It comes from
   the same Yahoo chart response as the quote, so it adds no request or delay.
-- Both Chinese boards share one `CN` badge and both Korean boards share `KR`;
-  which board a symbol sits on is already in its suffix.
+- Both Chinese boards share one `CN` badge, both Korean boards share `KR` and
+  both Taiwanese boards share `TW`; which board a symbol sits on is already
+  in its suffix.
 - `LIVE` / `LOADING` / `OFFLINE` sits where a refresh button would be. The
   panel either has current prices or says why it does not.
 - `STALE` means a price has stopped arriving **while its market is open**, past
@@ -162,6 +164,11 @@ venue — `600519.SH`, `7203.T`, `00700.HK`, `^GSPC` — is resolved locally and
 offered whether or not the index knows it, which matters twice: Yahoo spells
 Shanghai `.SS` rather than `.SH`, and it answers HTTP 400 to Chinese, Japanese
 and Korean queries outright. `茅台` finds nothing there, but `600519.SH` works.
+Taiwanese listings are the exception: the TWSE and TPEx daily listings are
+searched alongside Yahoo's index, by code or Chinese name (`台積`, `元大`,
+`00679`), and their matches are listed first, warrants excluded. The listings
+are fetched on the first such search and kept for twelve hours, so a stock that
+listed today is found from the next trading day.
 
 A bare US ticker is left to the index on purpose: `nvidia` is a valid
 ten-character US code as far as the symbol layer is concerned, and offering it
@@ -173,22 +180,31 @@ or London listing never joins the watchlist under a US badge.
 ## Data
 
 Quotes come from Yahoo Finance's chart endpoint, covering US, Hong Kong,
-Shanghai, Shenzhen, Tokyo, both Korean boards and the COMEX/NYMEX metal
-contracts. US symbols are read over an extended-session window, so a pre- or
-post-market price shows as such and is measured against the regular close
-rather than yesterday's.
+Shanghai, Shenzhen, Tokyo, both Korean boards, both Taiwanese boards and the
+COMEX/NYMEX metal contracts. US symbols are read over an extended-session
+window, so a pre- or post-market price shows as such and is measured against
+the regular close rather than yesterday's.
+
+Taiwanese stocks and ETFs (`2330.TW`, `6488.TWO`) and the TAIEX / TPEx indices
+are quoted live from TWSE Market Info, the exchange's own feed, with Yahoo's
+twenty-minute-delayed quote underneath for charts and whenever the exchange has
+no price. Search finds them by code or Chinese name. Yahoo keeps no daily
+history for the TPEx index, so its D, W and M charts read "No history"; its
+intraday chart works.
 
 Delay is per market and is shown in the quote detail: the US is real time,
-Hong Kong and the Chinese boards about fifteen minutes, Tokyo and Seoul about
-twenty, the metal contracts about ten.
+Hong Kong and the Chinese boards about fifteen minutes, Tokyo, Seoul and Taipei
+about twenty, the metal contracts about ten.
 
-Requests are serialised one symbol per second, and a closed market is not
-polled at all. A twenty-symbol watchlist therefore refreshes over twenty
-seconds and never trips the rate limit.
+Yahoo requests are serialised one symbol per second, and a closed market is
+not polled at all. A twenty-symbol watchlist therefore refreshes over twenty
+seconds and never trips the rate limit. Taiwanese rows are also asked of TWSE
+in batches of up to fifty, at least three seconds apart, on a separate queue.
 
 ### Not yet wired
 
-The macOS app routes across several sources; this port currently ships one.
+The macOS app routes across several sources; this port currently ships two
+(Yahoo Finance, plus TWSE Market Info for Taiwan).
 Still to come: crypto through Binance (including the 1-second websocket
 ticker), spot precious metals and the Shanghai Gold Exchange, Korean real-time
 and Korean-language search through Naver, the Sina and Tencent providers,

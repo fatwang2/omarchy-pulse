@@ -44,6 +44,33 @@ function applySymbols(state, rawSymbols) {
   return { symbols: symbols, quotes: quotes, errors: errors, updatedMs: state.updatedMs }
 }
 
+// Two sources can answer for one row — Taiwan is quoted live by TWSE and
+// twenty minutes late by Yahoo — so a landing quote is merged, not swapped in.
+// An older price from another source never replaces a newer one; it may only
+// bring the intraday series the live source does not carry. A source that has
+// no series at all leaves the key out, and the line another source drew stays;
+// one that sends `series: null` is saying there is no line yet, and is believed.
+function withSeries(quote, series) {
+  var copy = {}
+  for (var key in quote) {
+    if (Object.prototype.hasOwnProperty.call(quote, key)) copy[key] = quote[key]
+  }
+  copy.series = series
+  return copy
+}
+
+function mergeQuote(previous, incoming) {
+  if (!previous) return incoming
+  var carriesSeries = Object.prototype.hasOwnProperty.call(incoming, "series")
+  var olderFromElsewhere = previous.sourceID !== incoming.sourceID
+    && typeof previous.timestampMs === "number"
+    && typeof incoming.timestampMs === "number"
+    && incoming.timestampMs < previous.timestampMs
+  if (olderFromElsewhere) return carriesSeries ? withSeries(previous, incoming.series) : previous
+  if (!carriesSeries && previous.series) return withSeries(incoming, previous.series)
+  return incoming
+}
+
 // A quote landing. The symbol must still be on the watchlist — a response can
 // outlive the row that asked for it.
 function applyQuote(state, quote) {
@@ -53,14 +80,15 @@ function applyQuote(state, quote) {
   for (var key in state.quotes) {
     if (Object.prototype.hasOwnProperty.call(state.quotes, key)) quotes[key] = state.quotes[key]
   }
-  quotes[quote.symbol] = quote
+  var merged = mergeQuote(state.quotes[quote.symbol], quote)
+  quotes[quote.symbol] = merged
   var errors = {}
   for (var errKey in state.errors) {
     if (Object.prototype.hasOwnProperty.call(state.errors, errKey) && errKey !== quote.symbol) {
       errors[errKey] = state.errors[errKey]
     }
   }
-  return { symbols: state.symbols, quotes: quotes, errors: errors, updatedMs: quote.timestampMs || state.updatedMs }
+  return { symbols: state.symbols, quotes: quotes, errors: errors, updatedMs: merged.timestampMs || state.updatedMs }
 }
 
 function applyError(state, symbol, message) {
@@ -221,6 +249,7 @@ if (typeof module !== "undefined") module.exports = {
   STALE_AFTER_MS: STALE_AFTER_MS,
   initialState: initialState,
   applySymbols: applySymbols,
+  mergeQuote: mergeQuote,
   applyQuote: applyQuote,
   applyError: applyError,
   change: change,

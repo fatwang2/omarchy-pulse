@@ -1,9 +1,14 @@
 // Market identity, ported from PulseCore's `Market.swift`.
 //
 // Shanghai and Shenzhen stay separate because sources address them with
-// different suffixes, and the two Korean boards stay separate for the same
-// reason — a Korean code carries no hint of which board it belongs to. The
-// display layer merges each pair back into one badge.
+// different suffixes, and the two Korean boards and the two Taiwanese boards
+// stay separate for the same reason — a Korean or Taiwanese code carries no
+// hint of which board it belongs to. The display layer merges each pair back
+// into one badge.
+//
+// Taiwan has no PulseCore source to port: it arrived in Pulse for macOS
+// 0.15.10, after the app stopped being open source, and is aligned with that
+// release's observed behaviour.
 
 var MARKETS = {
   us:      { currency: "USD", timeZone: "America/New_York", utcOffsetMinutes: null, label: "US" },
@@ -13,6 +18,8 @@ var MARKETS = {
   jp:      { currency: "JPY", timeZone: "Asia/Tokyo",       utcOffsetMinutes: 540,  label: "JP" },
   kr:      { currency: "KRW", timeZone: "Asia/Seoul",       utcOffsetMinutes: 540,  label: "KR" },
   kq:      { currency: "KRW", timeZone: "Asia/Seoul",       utcOffsetMinutes: 540,  label: "KR" },
+  tw:      { currency: "TWD", timeZone: "Asia/Taipei",      utcOffsetMinutes: 480,  label: "TW" },
+  two:     { currency: "TWD", timeZone: "Asia/Taipei",      utcOffsetMinutes: 480,  label: "TW" },
   crypto:  { currency: "USD", timeZone: "UTC",              utcOffsetMinutes: 0,    label: "CRYPTO" },
   metal:   { currency: "USD", timeZone: "America/New_York", utcOffsetMinutes: null, label: "METAL" },
   metalCN: { currency: "CNY", timeZone: "Asia/Shanghai",    utcOffsetMinutes: 480,  label: "METAL" }
@@ -22,12 +29,13 @@ var MARKETS = {
 // does: which board a stock sits on is already in its symbol suffix.
 var DISPLAY_LABELS = {
   us: "US", hk: "HK", sh: "CN", sz: "CN", jp: "JP", kr: "KR", kq: "KR",
+  tw: "TW", two: "TW",
   crypto: "CRYPTO", metal: "METAL", metalCN: "METAL"
 }
 
 // Rows are grouped by market and stable within a market, so a price tick never
 // reorders the list. The API order inside a market is preserved.
-var MARKET_ORDER = ["us", "hk", "sh", "sz", "jp", "kr", "kq", "crypto", "metal", "metalCN"]
+var MARKET_ORDER = ["us", "hk", "sh", "sz", "jp", "kr", "kq", "tw", "two", "crypto", "metal", "metalCN"]
 
 function isKnown(market) {
   return Object.prototype.hasOwnProperty.call(MARKETS, String(market))
@@ -64,6 +72,10 @@ function isKorea(market) {
   return market === "kr" || market === "kq"
 }
 
+function isTaiwan(market) {
+  return market === "tw" || market === "two"
+}
+
 function isMetal(market) {
   return market === "metal" || market === "metalCN"
 }
@@ -76,7 +88,7 @@ function isMetal(market) {
 //
 // Tokyo's 11:30-12:30 lunch break and the Chinese 11:30-13:00 break are real
 // gaps in the tape, so they are modelled as two sessions rather than one long
-// one. Seoul trades straight through.
+// one. Seoul and Taipei trade straight through.
 
 var SESSIONS = {
   us:      [[570, 960]],              // 09:30-16:00
@@ -86,6 +98,8 @@ var SESSIONS = {
   jp:      [[540, 690], [750, 930]],  // 09:00-11:30, 12:30-15:30
   kr:      [[540, 930]],              // 09:00-15:30
   kq:      [[540, 930]],
+  tw:      [[540, 810]],              // 09:00-13:30
+  two:     [[540, 810]],
   metal:   [[0, 1440]],               // effectively round the clock
   metalCN: [[540, 900], [1260, 1440], [0, 150]]
 }
@@ -147,6 +161,7 @@ if (typeof module !== "undefined") module.exports = {
   priority: priority,
   isChinaA: isChinaA,
   isKorea: isKorea,
+  isTaiwan: isTaiwan,
   isMetal: isMetal,
   localMinutes: localMinutes,
   localWeekday: localWeekday,

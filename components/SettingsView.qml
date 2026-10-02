@@ -180,7 +180,12 @@ Column {
 
     SourceRow {
       name: "Yahoo Finance"
-      detail: "US real time · HK/CN ~15 min · JP/KR ~20 min · metals"
+      detail: "US real time · HK/CN ~15 min · JP/KR/TW ~20 min · metals"
+      wired: true
+    }
+    SourceRow {
+      name: "TWSE Market Info"
+      detail: "Taiwan TWSE / TPEx real time · search by code or Chinese name"
       wired: true
     }
     SourceRow {

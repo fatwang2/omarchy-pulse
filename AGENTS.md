@@ -39,6 +39,14 @@ from a provider's search index, so it never needs to check one. Here the
 watchlist is a file a person edits by hand, so `SymbolID.create` refuses a code
 that cannot resolve rather than creating a row that can never quote.
 
+Taiwan is the exception with no Swift to port. It arrived in Pulse for macOS
+0.15.10, after the app stopped being open source, so `TWSEAdapter.js` and the
+`tw`/`two` entries elsewhere reproduce that release's observed behaviour:
+endpoints, field precedence, the three-second pacing, the warrant filter and
+the Korea-then-Taiwan block order. The one deliberate departure is reading
+MIS's nested `trade.z` after `z` and `pz`, because without it most Taiwanese
+rows never get a live price. Keep that comment with the code.
+
 ## JavaScript modules
 
 QML resources declare dependencies with `.import "X.js" as X`, which must be
@@ -57,6 +65,18 @@ serialised through a queue with a one-second spacing, and a closed market is
 not polled at all. Do not add a parallel fan-out, a shorter floor than the
 15-second clamp in `Watchlist.qml`, or a refresh on a timer faster than the
 source can actually change.
+
+The TWSE lane has its own rule and its own queue and timer: requests are
+batched, at most 50 channels each, at least 3 s apart. They carry no `Referer`
+header — Qt's XHR forbids setting one and MIS answers without it. A closed
+market is not polled after the first pass.
+
+Taiwanese search does not ask MIS at all. MIS's name index answers rtcode
+9999 to any query holding a UTF-8 0x85 byte (元, 光, 全) and takes over ten
+seconds on a broad prefix, so search reads TWSE's and TPEx's daily open-data
+listings instead: two requests on the first search that needs them, kept for
+twelve hours and matched locally, with a failed fetch not retried for a
+minute. Do not move search back to a per-query request.
 
 ## Ordering is the user's
 

@@ -62,3 +62,11 @@ test("a fresh addition tops its market block, beneath the block's pins", () => {
   // Pins first, then the newest addition, then the rest in saved order.
   assert.deepEqual(ordered, ["NVDA", "AMD", "AAPL", "700.HK"])
 })
+
+test("Taiwan follows Korea in both windows, both boards in one block", () => {
+  const list = ["AAPL", "2330.TW", "005930.KS", "6488.TWO", "700.HK", "GC"]
+  assert.deepEqual(SessionOrder.orderedSymbols(list, [], ASIA_DAY),
+    ["700.HK", "005930.KS", "2330.TW", "6488.TWO", "AAPL", "GC"])
+  assert.deepEqual(SessionOrder.orderedSymbols(list, [], US_EVENING),
+    ["AAPL", "700.HK", "005930.KS", "2330.TW", "6488.TWO", "GC"])
+})
